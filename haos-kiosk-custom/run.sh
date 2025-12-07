@@ -179,25 +179,25 @@ else
     bashio::log.info "Creating default xorg.conf manually..."
     cat > /etc/X11/xorg.conf << EOF
 Section "ServerLayout"
-    Identifier      "DefaultLayout"
-    Screen          0 "Screen0" 0 0
+    Identifier		"DefaultLayout"
+    Screen         	0  "Screen0" 0 0
 EndSection
 
 Section "Device"
-    Identifier      "Card0"
-    Driver          "modesetting"
-    Option          "DRI" "3"
+    Identifier		"Card0"
+    Driver      	"modesetting"
+    Option      	"DRI" "3"
 EndSection
 
 Section "Monitor"
-    Identifier      "Monitor0"
+    Identifier		"Monitor0"
 EndSection
 
 Section "Screen"
-    Identifier      "Screen0"
-    Device          "Card0"
-    Monitor         "Monitor0"
-    DefaultDepth    24
+    Identifier		"Screen0"
+    Device     		"Card0"
+    Monitor    		"Monitor0"
+    DefaultDepth 	24
 EndSection
 
 # General libinput catchall for keyboards
