@@ -251,9 +251,12 @@ fi
 # Vérifier si X a vraiment démarré
 if ! xset q >/dev/null 2>&1; then
     bashio::log.error "Error: X server failed to start within $XSTARTUP seconds."
-    bashio::log.error "=== Xorg.0.log contents ==="
-    cat /var/log/Xorg.0.log | tail -50
-    bashio::log.error "=== End of Xorg.0.log ==="
+    bashio::log.error "=== DÉBUT Xorg.0.log ==="
+    cat /var/log/Xorg.0.log | head -100  # Les 100 PREMIÈRES lignes
+    bashio::log.error "=== FIN Xorg.0.log ==="
+    bashio::log.error "=== Dernières lignes ==="
+    cat /var/log/Xorg.0.log | tail -30
+    bashio::log.error "==="
     exit 1
 fi
 bashio::log.info "X server started successfully after $i seconds..."
