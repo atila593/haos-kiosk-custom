@@ -163,6 +163,8 @@ if [ -z "$selected_card" ]; then
     # 2. L'ancienne ligne 'exit 1' (qui faisait planter l'Add-on) DOIT être absente ici
 fi
 
+bashio::log.info "Continuity Check: Selected card is '$selected_card'. Proceeding to Xorg config."
+
 #### Start Xorg
 rm -rf /tmp/.X*-lock
 
