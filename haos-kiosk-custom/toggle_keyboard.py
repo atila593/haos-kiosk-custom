@@ -1,15 +1,3 @@
-################################################################################
-# Add-on: HAOS Kiosk Display (haoskiosk)
-# File: toggle_keyboard.py
-# Version: 1.1.1
-# Copyright Jeff Kosowsky
-# Date: September 2025
-#
-# Creates a 1x1 pixel button at top right corner of screen to toggle onboard
-# keyboard on/off.
-# If optional parameter is true, then pixel is 'black', otherwise 'white'
-################################################################################
-
 import tkinter as tk
 import subprocess
 import sys
