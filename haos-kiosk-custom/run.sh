@@ -174,6 +174,7 @@ if [[ -n "$XORG_CONF" && "${XORG_APPEND_REPLACE}" = "replace" ]]; then
     bashio::log.info "Replacing default 'xorg.conf'..."
     echo "${XORG_CONF}" >| /etc/X11/xorg.conf
 else
+    mkdir -p /etc/X11
     # 💥 CORRECTION CRITIQUE : Création manuelle du fichier xorg.conf (remplace le 'cp' qui échouait)
     bashio::log.info "Creating default xorg.conf manually..."
     cat > /etc/X11/xorg.conf << EOF
