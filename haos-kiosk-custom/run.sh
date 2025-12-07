@@ -98,10 +98,9 @@ echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.pr
 #### CRITICAL HACK: Delete /dev/tty0 temporarily so X can start
 if [ -e "/dev/tty0" ]; then
     bashio::log.info "Attempting to remount /dev as 'rw' so we can (temporarily) delete /dev/tty0..."
-    mount -o remount,rw /dev
+    mount -o remount,rw /dev || true
     if ! mount -o remount,rw /dev ; then
-        bashio::log.error "Failed to remount /dev as read-write..."
-        
+        bashio::log.error "Failed to remount /dev as read-write..."   
     fi
     if  ! rm -f /dev/tty0 ; then
         bashio::log.error "Failed to delete /dev/tty0..."
