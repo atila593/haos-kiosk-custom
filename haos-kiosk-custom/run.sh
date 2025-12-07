@@ -8,7 +8,7 @@ bashio::log.info "######## Starting HAOSKiosk (Firefox Edition) ########"
 bashio::log.info "$(date) [Version: $VERSION]"
 bashio::log.info "$(uname -a)"
 ha_info=$(bashio::info)
-bashio::log.info "Core=$(echo "$ha_info" | jq -r '.homeassistant')  HAOS=$(echo "$ha_info" | jq -r '.hassos')  MACHINE=$(echo "$ha_info" | jq -r '.machine')  ARCH=$(echo "$ha_info" | jq -r '.arch')"
+bashio::log.info "Core=$(echo "$ha_info" | jq -r '.homeassistant') HAOS=$(echo "$ha_info" | jq -r '.hassos') MACHINE=$(echo "$ha_info" | jq -r '.machine') ARCH=$(echo "$ha_info" | jq -r '.arch')"
 
 #### Clean up on exit:
 TTY0_DELETED=""
@@ -98,15 +98,16 @@ echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.pr
 #### CRITICAL HACK: Delete /dev/tty0 temporarily so X can start
 if [ -e "/dev/tty0" ]; then
     bashio::log.info "Attempting to remount /dev as 'rw' so we can (temporarily) delete /dev/tty0..."
-    mount -o remount,rw /dev || true
+    mount -o remount,rw /dev || true # La commande échoue, mais le script continue
     if ! mount -o remount,rw /dev ; then
-        bashio::log.error "Failed to remount /dev as read-write..."   
+        bashio::log.error "Failed to remount /dev as read-write... (System is read-only)"    
     fi
     if  ! rm -f /dev/tty0 ; then
-        bashio::log.error "Failed to delete /dev/tty0..."
+        # On ne quitte pas en cas d'échec de la suppression
+        bashio::log.warning "WARNING: Failed to delete /dev/tty0. Continuing anyway."
     fi
     TTY0_DELETED=1
-    bashio::log.info "Deleted /dev/tty0 successfully..."
+    bashio::log.info "Deleted /dev/tty0 successfully... (ATTENTION: Ceci sera journalisé même si la suppression a échoué)"
 fi
 
 #### Start udev (used by X)
@@ -129,16 +130,18 @@ done
 udevadm settle --timeout=10
 
 echo "libinput list-devices found:"
+# Les lignes de log 'libinput' sont commentées car elles causaient des erreurs de caractère invisible
 # libinput list-devices 2>/dev/null | awk '
-#   /^Device:/ {devname=substr($0, 9)}
-#   /^Kernel:/ {
-#     split($2, a, "/");
-#     printf "  %s: %s\n", a[length(a)], devname
+#    /^Device:/ {devname=substr($0, 9)}
+#    /^Kernel:/ {
+#      split($2, a, "/");
+#      printf "  %s: %s\n", a[length(a)], devname
 # }' | sort -V
 
 ## Determine main display card
 bashio::log.info "DRM video cards:"
-#find /dev/dri/ -maxdepth 1 -type c -name 'card[0-9]*' 2>/dev/null | sed 's/^/  /'  # ⬅️ COMMENTER
+# La détection de carte est bypassée car l'accès à /sys/class/drm/ échoue et arrête le script
+#find /dev/dri/ -maxdepth 1 -type c -name 'card[0-9]*' 2>/dev/null | sed 's/^/  /'
 bashio::log.info "DRM video card driver and connection status:"
 selected_card="card0" # ⬅️ DÉFINIR LA VALEUR PAR DÉFAUT
 # La boucle suivante est commentée car elle plante le script en accédant à /sys/class/drm/
@@ -150,9 +153,9 @@ selected_card="card0" # ⬅️ DÉFINIR LA VALEUR PAR DÉFAUT
 #    driver=$(basename "$(readlink "/sys/class/drm/$card/device/driver")")
 #    if [ -z "$selected_card" ] && [ "$status" = "connected" ]; then
 #        selected_card="$card"
-#        printf "  *"
+#        printf "  *"
 #    else
-#        printf "  "
+#        printf "  "
 #    fi
 #    printf "%-25s%-20s%s\n" "$card_port" "$driver" "$status"
 #done
@@ -171,9 +174,9 @@ if [[ -n "$XORG_CONF" && "${XORG_APPEND_REPLACE}" = "replace" ]]; then
     bashio::log.info "Replacing default 'xorg.conf'..."
     echo "${XORG_CONF}" >| /etc/X11/xorg.conf
 else
-    # 💥 CORRECTION CRITIQUE : Création manuelle du fichier xorg.conf (remplace le 'cp' qui échouait)
-    bashio::log.info "Creating default xorg.conf manually..."
-    cat > /etc/X11/xorg.conf << EOF
+    # 💥 CORRECTION CRITIQUE : Création manuelle du fichier xorg.conf (remplace le 'cp' qui échouait)
+    bashio::log.info "Creating default xorg.conf manually..."
+    cat > /etc/X11/xorg.conf << EOF
 Section "ServerLayout"
     Identifier		"DefaultLayout"
     Screen         	0  "Screen0" 0 0
@@ -221,7 +224,10 @@ Section "InputClass"
     Option		"TappingDrag" "on"
 EndSection
 EOF
-    sed -i "/Option[[:space:]]\+\"DRI\"[[:space:]]\+\"3\"/a\    Option     \t\t\"kmsdev\" \"/dev/dri/$selected_card\"" /etc/X11/xorg.conf
+    # LIGNE 'cp' FATALE RETIRÉE
+    
+    # Ligne 'sed' nettoyée des caractères invisibles et correctement indentée
+    sed -i "/Option[[:space:]]\+\"DRI\"[[:space:]]\+\"3\"/a\tOption\t\t\"kmsdev\" \"/dev/dri/$selected_card\"" /etc/X11/xorg.conf
 
     if [ -z "$XORG_CONF" ]; then
         bashio::log.info "No user 'xorg.conf' data provided, using default..."
