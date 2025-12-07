@@ -129,12 +129,12 @@ done
 udevadm settle --timeout=10
 
 echo "libinput list-devices found:"
-libinput list-devices 2>/dev/null | awk '
-  /^Device:/ {devname=substr($0, 9)}
-  /^Kernel:/ {
-    split($2, a, "/");
-    printf "  %s: %s\n", a[length(a)], devname
-}' | sort -V
+# libinput list-devices 2>/dev/null | awk '
+#   /^Device:/ {devname=substr($0, 9)}
+#   /^Kernel:/ {
+#     split($2, a, "/");
+#     printf "  %s: %s\n", a[length(a)], devname
+# }' | sort -V
 
 ## Determine main display card
 bashio::log.info "DRM video cards:"
