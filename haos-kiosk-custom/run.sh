@@ -179,50 +179,50 @@ else
     bashio::log.info "Creating default xorg.conf manually..."
     cat > /etc/X11/xorg.conf << EOF
 Section "ServerLayout"
-    Identifier		"DefaultLayout"
-    Screen           0 "Screen0" 0 0
+    Identifier      "DefaultLayout"
+    Screen          0 "Screen0" 0 0
 EndSection
 
 Section "Device"
-    Identifier		"Card0"
-    Driver      	"modesetting"
-    Option      	"DRI" "3"
+    Identifier      "Card0"
+    Driver          "modesetting"
+    Option          "DRI" "3"
 EndSection
 
 Section "Monitor"
-    Identifier		"Monitor0"
+    Identifier      "Monitor0"
 EndSection
 
 Section "Screen"
-    Identifier		"Screen0"
-    Device     		"Card0"
-    Monitor    		"Monitor0"
-    DefaultDepth 	24
+    Identifier      "Screen0"
+    Device          "Card0"
+    Monitor         "Monitor0"
+    DefaultDepth    24
 EndSection
 
 # General libinput catchall for keyboards
 Section "InputClass"
-    Identifier		"libinput keyboard"
-    MatchIsKeyboard 	"on"
-    Driver 		"libinput"
+    Identifier      "libinput keyboard"
+    MatchIsKeyboard "on"
+    Driver          "libinput"
 EndSection
 
 # General libinput catchall for mice and touchpads
 Section "InputClass"
-    Identifier		"libinput pointer"
-    MatchIsPointer 	"on"
-    Driver 		"libinput"
-    Option 		"Tapping" "on"
-    Option 		"NaturalScrolling" "true"
+    Identifier      "libinput pointer"
+    MatchIsPointer  "on"
+    Driver          "libinput"
+    Option          "Tapping" "on"
+    Option          "NaturalScrolling" "true"
 EndSection
 
 # General libinput catchall for touchscreens
 Section "InputClass"
-    Identifier		"libinput touchscreen"
-    MatchIsTouchscreen	"on"
-    Driver 		"libinput"
-    Option 		"Tapping" "on"
-    Option		"TappingDrag" "on"
+    Identifier      "libinput touchscreen"
+    MatchIsTouchscreen "on"
+    Driver          "libinput"
+    Option          "Tapping" "on"
+    Option          "TappingDrag" "on"
 EndSection
 EOF
     # LIGNE 'cp' FATALE RETIRÉE
