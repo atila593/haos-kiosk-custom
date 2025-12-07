@@ -180,7 +180,7 @@ else
     cat > /etc/X11/xorg.conf << EOF
 Section "ServerLayout"
     Identifier		"DefaultLayout"
-    Screen         	0  "Screen0" 0 0
+    Screen           0 "Screen0" 0 0
 EndSection
 
 Section "Device"
