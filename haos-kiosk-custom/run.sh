@@ -171,7 +171,56 @@ if [[ -n "$XORG_CONF" && "${XORG_APPEND_REPLACE}" = "replace" ]]; then
     bashio::log.info "Replacing default 'xorg.conf'..."
     echo "${XORG_CONF}" >| /etc/X11/xorg.conf
 else
-    cp -a /etc/X11/xorg.conf{.default,}
+    # 💥 CORRECTION CRITIQUE : Création manuelle du fichier xorg.conf (remplace le 'cp' qui échouait)
+    bashio::log.info "Creating default xorg.conf manually..."
+    cat > /etc/X11/xorg.conf << EOF
+Section "ServerLayout"
+    Identifier		"DefaultLayout"
+    Screen         	0  "Screen0" 0 0
+EndSection
+
+Section "Device"
+    Identifier		"Card0"
+    Driver      	"modesetting"
+    Option      	"DRI" "3"
+EndSection
+
+Section "Monitor"
+    Identifier		"Monitor0"
+EndSection
+
+Section "Screen"
+    Identifier		"Screen0"
+    Device     		"Card0"
+    Monitor    		"Monitor0"
+    DefaultDepth 	24
+EndSection
+
+# General libinput catchall for keyboards
+Section "InputClass"
+    Identifier		"libinput keyboard"
+    MatchIsKeyboard 	"on"
+    Driver 		"libinput"
+EndSection
+
+# General libinput catchall for mice and touchpads
+Section "InputClass"
+    Identifier		"libinput pointer"
+    MatchIsPointer 	"on"
+    Driver 		"libinput"
+    Option 		"Tapping" "on"
+    Option 		"NaturalScrolling" "true"
+EndSection
+
+# General libinput catchall for touchscreens
+Section "InputClass"
+    Identifier		"libinput touchscreen"
+    MatchIsTouchscreen	"on"
+    Driver 		"libinput"
+    Option 		"Tapping" "on"
+    Option		"TappingDrag" "on"
+EndSection
+EOF
     sed -i "/Option[[:space:]]\+\"DRI\"[[:space:]]\+\"3\"/a\    Option     \t\t\"kmsdev\" \"/dev/dri/$selected_card\"" /etc/X11/xorg.conf
 
     if [ -z "$XORG_CONF" ]; then
