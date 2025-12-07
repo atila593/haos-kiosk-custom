@@ -138,29 +138,28 @@ libinput list-devices 2>/dev/null | awk '
 
 ## Determine main display card
 bashio::log.info "DRM video cards:"
-find /dev/dri/ -maxdepth 1 -type c -name 'card[0-9]*' 2>/dev/null | sed 's/^/  /'
+#find /dev/dri/ -maxdepth 1 -type c -name 'card[0-9]*' 2>/dev/null | sed 's/^/  /'  # ⬅️ COMMENTER
 bashio::log.info "DRM video card driver and connection status:"
-selected_card=""
-for status_path in /sys/class/drm/card[0-9]*-*/status; do
-    [ -e "$status_path" ] || continue
-    status=$(cat "$status_path")
-    card_port=$(basename "$(dirname "$status_path")")
-    card=${card_port%%-*}
-    driver=$(basename "$(readlink "/sys/class/drm/$card/device/driver")")
-    if [ -z "$selected_card" ]  && [ "$status" = "connected" ]; then
-        selected_card="$card"
-        printf "  *"
-    else
-        printf "   "
-    fi
-    printf "%-25s%-20s%s\n" "$card_port" "$driver" "$status"
-done
-if [ -z "$selected_card" ]; then
-    # Log en tant que WARNING (Avertissement) puisque le script va continuer.
-    bashio::log.warning "WARNING: No connected video card detected automatically. Forcing 'card0' for Xorg configuration."
-    # 1. Forcer la valeur pour que la configuration Xorg ne plante pas
-    selected_card="card0"
-    # 2. L'ancienne ligne 'exit 1' (qui faisait planter l'Add-on) DOIT être absente ici
+selected_card="card0" # ⬅️ DÉFINIR LA VALEUR PAR DÉFAUT
+# La boucle suivante est commentée car elle plante le script en accédant à /sys/class/drm/
+#for status_path in /sys/class/drm/card[0-9]*-*/status; do
+#    [ -e "$status_path" ] || continue
+#    status=$(cat "$status_path")
+#    card_port=$(basename "$(dirname "$status_path")")
+#    card=${card_port%%-*}
+#    driver=$(basename "$(readlink "/sys/class/drm/$card/device/driver")")
+#    if [ -z "$selected_card" ] && [ "$status" = "connected" ]; then
+#        selected_card="$card"
+#        printf "  *"
+#    else
+#        printf "  "
+#    fi
+#    printf "%-25s%-20s%s\n" "$card_port" "$driver" "$status"
+#done
+
+# On affiche un avertissement clair pour expliquer la raison du bypass
+if [ "$selected_card" = "card0" ]; then
+    bashio::log.warning "WARNING: DRM card detection bypassed due to HAOS access restrictions. Using 'card0'."
 fi
 
 bashio::log.info "Continuity Check: Selected card is '$selected_card'. Proceeding to Xorg config."
