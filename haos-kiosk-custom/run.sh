@@ -185,7 +185,7 @@ EndSection
 
 Section "Device"
     Identifier      "Card0"
-    Driver          "vesa" 
+    Driver          "modesetting"
 EndSection
 
 Section "Monitor"
