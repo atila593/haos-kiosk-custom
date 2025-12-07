@@ -157,7 +157,6 @@ for status_path in /sys/class/drm/card[0-9]*-*/status; do
 done
 if [ -z "$selected_card" ]; then
     bashio::log.info "ERROR: No connected video card detected. Exiting.."
-    exit 1
 fi
 
 #### Start Xorg
