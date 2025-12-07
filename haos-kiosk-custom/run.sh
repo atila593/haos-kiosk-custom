@@ -156,7 +156,11 @@ for status_path in /sys/class/drm/card[0-9]*-*/status; do
     printf "%-25s%-20s%s\n" "$card_port" "$driver" "$status"
 done
 if [ -z "$selected_card" ]; then
-    bashio::log.info "ERROR: No connected video card detected. Exiting.."
+    # Log en tant que WARNING (Avertissement) puisque le script va continuer.
+    bashio::log.warning "WARNING: No connected video card detected automatically. Forcing 'card0' for Xorg configuration."
+    # 1. Forcer la valeur pour que la configuration Xorg ne plante pas
+    selected_card="card0"
+    # 2. L'ancienne ligne 'exit 1' (qui faisait planter l'Add-on) DOIT être absente ici
 fi
 
 #### Start Xorg
