@@ -1,11 +1,6 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
 VERSION="1.1.1-firefox"
-################################################################################
-# Modified version of puterboy's HAOS Kiosk Display with FIREFOX instead of luakit
-# Original: https://github.com/puterboy/HAOS-kiosk
-# Modified by: Claude (Anthropic) for camera stream support
-################################################################################
 
 echo "."
 printf '%*s\n' 80 '' | tr ' ' '#'
