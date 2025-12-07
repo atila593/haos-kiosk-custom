@@ -57,9 +57,6 @@ map:
 
 privileged: 
   - SYS_ADMIN
-  - DAC_READ_SEARCH 
-  - MKNOD            
-  - CHOWN
 
 options:
   ha_url: "http://localhost:8123"
