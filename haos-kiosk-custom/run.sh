@@ -185,7 +185,9 @@ EndSection
 
 Section "Device"
     Identifier      "Card0"
-    Driver          "modesetting"
+    Driver          "intel"
+    Option          "AccelMethod" "sna"
+    Option          "DRI" "3"
 EndSection
 
 Section "Monitor"
