@@ -245,7 +245,9 @@ echo "."
 bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
-Xorg $NOCURSOR </dev/null &
+Xorg $NOCURSOR -retro &  # ← Ajout de -retro pour éviter que X se ferme
+X_PID=$!
+bashio::log.info "X server PID: $X_PID"
 
 XSTARTUP=90
 for ((i=0; i<=XSTARTUP; i++)); do
