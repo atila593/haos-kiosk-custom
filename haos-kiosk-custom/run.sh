@@ -104,7 +104,6 @@ if [ -e "/dev/tty0" ]; then
     fi
     if  ! rm -f /dev/tty0 ; then
         bashio::log.error "Failed to delete /dev/tty0..."
-        exit 1
     fi
     TTY0_DELETED=1
     bashio::log.info "Deleted /dev/tty0 successfully..."
