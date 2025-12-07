@@ -152,61 +152,14 @@ else
     
     bashio::log.info "Creating default xorg.conf manually..."
     cat > /etc/X11/xorg.conf << 'EOF'
-Section "ServerLayout"
-    Identifier      "DefaultLayout"
-    Screen          0 "Screen0" 0 0
-EndSection
-
-Section "Files"
-    ModulePath   "/usr/lib/xorg/modules"
-EndSection
-
-Section "ServerFlags"
-    Option "AutoAddDevices" "true"
-    Option "AutoAddGPU" "true"
-EndSection
-
 Section "Device"
     Identifier      "Card0"
     Driver          "modesetting"
-    Option          "kmsdev" "/dev/dri/card0"
-    Option          "Device" "/dev/dri/card0"
-EndSection
-
-Section "Monitor"
-    Identifier      "Monitor0"
 EndSection
 
 Section "Screen"
     Identifier      "Screen0"
     Device          "Card0"
-    Monitor         "Monitor0"
-    DefaultDepth    24
-EndSection
-
-# General libinput catchall for keyboards
-Section "InputClass"
-    Identifier      "libinput keyboard"
-    MatchIsKeyboard "on"
-    Driver          "libinput"
-EndSection
-
-# General libinput catchall for mice and touchpads
-Section "InputClass"
-    Identifier      "libinput pointer"
-    MatchIsPointer  "on"
-    Driver          "libinput"
-    Option          "Tapping" "on"
-    Option          "NaturalScrolling" "true"
-EndSection
-
-# General libinput catchall for touchscreens
-Section "InputClass"
-    Identifier      "libinput touchscreen"
-    MatchIsTouchscreen "on"
-    Driver          "libinput"
-    Option          "Tapping" "on"
-    Option          "TappingDrag" "on"
 EndSection
 EOF
 
@@ -227,7 +180,7 @@ echo "."
 bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
-Xorg $NOCURSOR -retro &
+Xorg $NOCURSOR &
 X_PID=$!
 bashio::log.info "X server PID: $X_PID"
 
