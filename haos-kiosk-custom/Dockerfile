@@ -6,7 +6,6 @@ RUN apk update && apk add --no-cache \
     xorg-server \
     xf86-video-intel \
     xf86-video-fbdev \
-    mesa-dri-intel \
     dbus \
     ttf-freefont \
     firefox-esr \
