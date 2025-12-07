@@ -6,6 +6,8 @@ RUN apk update && apk add --no-cache \
     xorg-server \
     xf86-video-intel \
     xf86-video-fbdev \
+    xf86-video-modesetting \
+    xf86-input-libinput \
     dbus \
     ttf-freefont \
     firefox-esr \
