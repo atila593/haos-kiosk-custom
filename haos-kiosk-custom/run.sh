@@ -247,7 +247,7 @@ NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
 Xorg $NOCURSOR </dev/null &
 
-XSTARTUP=60
+XSTARTUP=90
 for ((i=0; i<=XSTARTUP; i++)); do
     if xset q >/dev/null 2>&1; then
         break
