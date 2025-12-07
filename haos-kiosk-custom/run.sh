@@ -183,9 +183,20 @@ Section "ServerLayout"
     Screen          0 "Screen0" 0 0
 EndSection
 
+Section "Files"
+    ModulePath   "/usr/lib/xorg/modules"
+EndSection
+
+Section "ServerFlags"
+    Option "AutoAddDevices" "true"
+    Option "AutoAddGPU" "true"
+EndSection
+
 Section "Device"
     Identifier      "Card0"
     Driver          "modesetting"
+    Option          "kmsdev" "/dev/dri/card0"
+    Option          "Device" "/dev/dri/card0"
 EndSection
 
 Section "Monitor"
