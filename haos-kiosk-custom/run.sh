@@ -252,7 +252,7 @@ bashio::log.info "X server PID: $X_PID"
 XSTARTUP=90
 for ((i=0; i<=XSTARTUP; i++)); do
     if xset q >/dev/null 2>&1; then
-        break
+        break  # ← X fonctionne, on sort de la boucle
     fi
     sleep 1
 done
@@ -266,8 +266,12 @@ if [ -n "$TTY0_DELETED" ]; then
     fi
 fi
 
+# Vérifier si X a vraiment démarré
 if ! xset q >/dev/null 2>&1; then
     bashio::log.error "Error: X server failed to start within $XSTARTUP seconds."
+    bashio::log.error "=== Xorg.0.log contents ==="
+    cat /var/log/Xorg.0.log | tail -50  # Affiche les 50 dernières lignes
+    bashio::log.error "=== End of Xorg.0.log ==="
     exit 1
 fi
 bashio::log.info "X server started successfully after $i seconds..."
