@@ -98,7 +98,7 @@ echo "export DBUS_SESSION_BUS_ADDRESS='$DBUS_SESSION_BUS_ADDRESS'" >> "$HOME/.pr
 #### CRITICAL HACK: Delete /dev/tty0 temporarily so X can start
 if [ -e "/dev/tty0" ]; then
     bashio::log.info "Attempting to remount /dev as 'rw' so we can (temporarily) delete /dev/tty0..."
-    mount -o remount,rw /dev || true # La commande échoue, mais le script continue
+    mount -o remount,rw /dev || true
     if ! mount -o remount,rw /dev ; then
         bashio::log.error "Failed to remount /dev as read-write... (System is read-only)"    
     fi
@@ -129,36 +129,12 @@ done
 udevadm settle --timeout=10
 
 echo "libinput list-devices found:"
-# Le code log de libinput est commenté car il plantait le script
-# libinput list-devices 2>/dev/null | awk '
-#    /^Device:/ {devname=substr($0, 9)}
-#    /^Kernel:/ {
-#      split($2, a, "/");
-#      printf "  %s: %s\n", a[length(a)], devname
-# }' | sort -V
 
 ## Determine main display card
 bashio::log.info "DRM video cards:"
-# La détection de carte est bypassée car l'accès à /sys/class/drm/ échoue et arrête le script
 bashio::log.info "DRM video card driver and connection status:"
-selected_card="card0" # ⬅️ DÉFINIR LA VALEUR PAR DÉFAUT
-# Le bloc de détection est commenté
-#for status_path in /sys/class/drm/card[0-9]*-*/status; do
-#    [ -e "$status_path" ] || continue
-#    status=$(cat "$status_path")
-#    card_port=$(basename "$(dirname "$status_path")")
-#    card=${card_port%%-*}
-#    driver=$(basename "$(readlink "/sys/class/drm/$card/device/driver")")
-#    if [ -z "$selected_card" ] && [ "$status" = "connected" ]; then
-#        selected_card="$card"
-#        printf "  *"
-#    else
-#        printf "  "
-#    fi
-#    printf "%-25s%-20s%s\n" "$card_port" "$driver" "$status"
-#done
+selected_card="card0"
 
-# On affiche un avertissement clair pour expliquer la raison du bypass
 if [ "$selected_card" = "card0" ]; then
     bashio::log.warning "WARNING: DRM card detection bypassed due to HAOS access restrictions. Using 'card0'."
 fi
@@ -172,12 +148,10 @@ if [[ -n "$XORG_CONF" && "${XORG_APPEND_REPLACE}" = "replace" ]]; then
     bashio::log.info "Replacing default 'xorg.conf'..."
     echo "${XORG_CONF}" >| /etc/X11/xorg.conf
 else
-    # ÉTAPE 1: Créer le répertoire si manquant
     mkdir -p /etc/X11
     
-    # ÉTAPE 2: Création manuelle du fichier (Nettoyé et avec l'option KMS intégrée)
     bashio::log.info "Creating default xorg.conf manually..."
-    cat > /etc/X11/xorg.conf << EOF
+    cat > /etc/X11/xorg.conf << 'EOF'
 Section "ServerLayout"
     Identifier      "DefaultLayout"
     Screen          0 "Screen0" 0 0
@@ -235,9 +209,6 @@ Section "InputClass"
     Option          "TappingDrag" "on"
 EndSection
 EOF
-    
-    # LIGNE SED RETIRÉE - L'option KMS est maintenant intégrée ci-dessus
-    # sed -i "/Option[[:space:]]\+\"DRI\"[[:space:]]\+\"3\"/a\tOption\t\t\"kmsdev\" \"/dev/dri/$selected_card\"" /etc/X11/xorg.conf
 
     if [ -z "$XORG_CONF" ]; then
         bashio::log.info "No user 'xorg.conf' data provided, using default..."
@@ -256,14 +227,14 @@ echo "."
 bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
-Xorg $NOCURSOR -retro &  # ← Ajout de -retro pour éviter que X se ferme
+Xorg $NOCURSOR -retro &
 X_PID=$!
 bashio::log.info "X server PID: $X_PID"
 
 XSTARTUP=90
 for ((i=0; i<=XSTARTUP; i++)); do
     if xset q >/dev/null 2>&1; then
-        break  # ← X fonctionne, on sort de la boucle
+        break
     fi
     sleep 1
 done
@@ -281,7 +252,7 @@ fi
 if ! xset q >/dev/null 2>&1; then
     bashio::log.error "Error: X server failed to start within $XSTARTUP seconds."
     bashio::log.error "=== Xorg.0.log contents ==="
-    cat /var/log/Xorg.0.log | tail -50  # Affiche les 50 dernières lignes
+    cat /var/log/Xorg.0.log | tail -50
     bashio::log.error "=== End of Xorg.0.log ==="
     exit 1
 fi
@@ -383,9 +354,8 @@ else
     bashio::log.error "Could not determine screen size for output $OUTPUT_NAME"
 fi
 
-#### Onboard keyboard (keep same logic as original)
+#### Onboard keyboard
 if [[ "$ONSCREEN_KEYBOARD" = true && -n "$SCREEN_WIDTH" && -n "$SCREEN_HEIGHT" ]]; then
-    # ... [Gardez tout le code onboard keyboard de l'original] ...
     bashio::log.info "Starting Onboard onscreen keyboard"
     onboard &
     python3 /toggle_keyboard.py "$DARK_MODE" &
@@ -396,16 +366,14 @@ bashio::log.info "Starting HAOSKiosk REST server..."
 python3 /rest_server.py &
 
 ################################################################################
-#### FIREFOX LAUNCH (REMPLACE LUAKIT)
+#### FIREFOX LAUNCH
 ################################################################################
 if [ "$DEBUG_MODE" != true ]; then
-    # Créer profil Firefox
     FIREFOX_PROFILE="/tmp/firefox-kiosk-profile"
     rm -rf "$FIREFOX_PROFILE" 2>/dev/null
     mkdir -p "$FIREFOX_PROFILE"
 
-    # Configuration Firefox optimisée pour kiosk
-    cat > "$FIREFOX_PROFILE/user.js" << EOF
+    cat > "$FIREFOX_PROFILE/user.js" << 'FIREFOXEOF'
 user_pref("browser.startup.homepage", "${HA_URL}/${HA_DASHBOARD}");
 user_pref("browser.fullscreen.autohide", false);
 user_pref("browser.tabs.warnOnClose", false);
@@ -416,14 +384,12 @@ user_pref("datareporting.policy.dataSubmissionEnabled", false);
 user_pref("privacy.donottrackheader.enabled", true);
 user_pref("media.autoplay.default", 0);
 user_pref("media.autoplay.blocking_policy", 0);
-EOF
+FIREFOXEOF
 
-    # Ajouter dark mode si activé
     if [ "$DARK_MODE" = true ]; then
         echo 'user_pref("ui.systemUsesDarkTheme", 1);' >> "$FIREFOX_PROFILE/user.js"
     fi
 
-    # Calculer le zoom (100 = 1.0, 150 = 1.5, etc.)
     ZOOM_DECIMAL=$(awk "BEGIN {printf \"%.2f\", $ZOOM_LEVEL / 100}")
     echo "user_pref(\"layout.css.devPixelsPerPx\", \"$ZOOM_DECIMAL\");" >> "$FIREFOX_PROFILE/user.js"
 
@@ -431,12 +397,10 @@ EOF
     bashio::log.info "Launching Firefox to: $FULL_URL"
     bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DECIMAL)"
 
-    # Lancer Firefox en kiosk
     firefox --kiosk --profile "$FIREFOX_PROFILE" "$FULL_URL" > /tmp/firefox.log 2>&1 &
     FIREFOX_PID=$!
     bashio::log.info "Firefox launched (PID: $FIREFOX_PID)"
 
-    # Attendre un peu puis auto-login
     sleep "$LOGIN_DELAY"
     
     (
@@ -460,7 +424,6 @@ EOF
         fi
     ) &
 
-    # Attendre Firefox
     wait "$FIREFOX_PID"
 else
     bashio::log.info "Entering debug mode (X & $WINMGR but no browser)..."
