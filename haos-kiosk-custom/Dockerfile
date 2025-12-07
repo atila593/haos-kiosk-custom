@@ -13,6 +13,8 @@ RUN apk update && apk add --no-cache \
     python3 \
     bash \
     patch \
+    eudev \
+    util-linux \
     # Tools for debugging
     procps \
     tini
