@@ -55,7 +55,8 @@ devices:
 map:
   - addon_config:rw
 
-privileged: true
+privileged: 
+  - SYS_ADMIN
 
 options:
   ha_url: "http://localhost:8123"
