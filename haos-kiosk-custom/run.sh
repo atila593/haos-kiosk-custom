@@ -185,9 +185,7 @@ EndSection
 
 Section "Device"
     Identifier      "Card0"
-    Driver          "modesetting"
-    Option          "DRI" "3"
-    Option          "kmsdev" "/dev/dri/${selected_card}" 
+    Driver          "vesa" 
 EndSection
 
 Section "Monitor"
