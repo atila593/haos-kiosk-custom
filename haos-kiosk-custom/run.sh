@@ -181,8 +181,7 @@ bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
 
-# Lancer X en arrière-plan
-Xorg $NOCURSOR -retro &
+Xorg $NOCURSOR -retro </dev/null &
 X_PID=$!
 bashio::log.info "X server PID: $X_PID"
 
