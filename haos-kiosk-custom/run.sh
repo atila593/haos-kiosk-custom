@@ -180,7 +180,15 @@ echo "."
 bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
-Xorg $NOCURSOR &
+
+# Créer un xinitrc minimal qui garde X vivant
+cat > /tmp/.xinitrc << 'XINITRC'
+#!/bin/sh
+exec tail -f /dev/null
+XINITRC
+chmod +x /tmp/.xinitrc
+
+startx /tmp/.xinitrc -- $NOCURSOR :0 &
 X_PID=$!
 bashio::log.info "X server PID: $X_PID"
 
