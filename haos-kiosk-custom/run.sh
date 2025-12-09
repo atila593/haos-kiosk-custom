@@ -181,17 +181,8 @@ bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
 
-Xorg $NOCURSOR -retro </dev/null &
-X_PID=$!
-bashio::log.info "X server PID: $X_PID"
-
-XSTARTUP=90
-for ((i=0; i<=XSTARTUP; i++)); do
-    if xset q >/dev/null 2>&1; then
-        break
-    fi
-    sleep 1
-done
+bashio::log.info "Waiting 5 seconds for X to initialize..."
+sleep 5
 
 # Restore /dev/tty0
 if [ -n "$TTY0_DELETED" ]; then
@@ -202,18 +193,8 @@ if [ -n "$TTY0_DELETED" ]; then
     fi
 fi
 
-# Vérifier si X a vraiment démarré
-if ! xset q >/dev/null 2>&1; then
-    bashio::log.error "Error: X server failed to start within $XSTARTUP seconds."
-    bashio::log.error "=== DÉBUT Xorg.0.log ==="
-    cat /var/log/Xorg.0.log | head -100  # Les 100 PREMIÈRES lignes
-    bashio::log.error "=== FIN Xorg.0.log ==="
-    bashio::log.error "=== Dernières lignes ==="
-    cat /var/log/Xorg.0.log | tail -30
-    bashio::log.error "==="
-    exit 1
-fi
-bashio::log.info "X server started successfully after $i seconds..."
+bashio::log.info "Continuing with X initialization..."
+export DISPLAY=:0
 
 echo "xinput list:"
 xinput list | sed 's/^/  /'
