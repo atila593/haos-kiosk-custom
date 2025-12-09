@@ -177,28 +177,29 @@ cat /etc/X11/xorg.conf
 printf '%*s\n' 80 '' | tr ' ' '#'
 echo "."
 
-bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
+bashio::log.info "Starting X on DISPLAY=:0..."
 NOCURSOR=""
-[ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
+[ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor" # No cursor if <0
 
-bashio::log.info "Waiting for X server connection (Max 15 seconds)..."
+# Lancement du serveur Xorg en arrière-plan
+Xorg :0 -nolisten tcp $NOCURSOR </dev/null &
 
-# Exporter la variable DISPLAY est CRUCIAL avant le test et le lancement des clients X
-export DISPLAY=:0 
+# Définition de la variable d'attente (30 secondes max)
+XSTARTUP=30 
+bashio::log.info "Waiting for X server connection (Max $XSTARTUP seconds)..."
 
-X_READY=0
-for i in $(seq 1 30); do # 30 boucles * 0.5 seconde = 15 secondes max
-    # 'xset q' est un outil client léger qui teste la connexion au serveur X.
-    if xset q > /dev/null 2>&1; then
-        X_READY=1
-        bashio::log.info "X server connection established after $((i * 500))ms."
-        break
+# Boucle d'attente dynamique
+for ((i=0; i<=XSTARTUP; i++)); do
+    if xset q >/dev/null 2>&1; then
+        bashio::log.info "X server connection established after $i seconds."
+        break # Le serveur est prêt
     fi
-    sleep 0.5
+    sleep 1
 done
 
-if [ "$X_READY" -eq 0 ]; then
-    bashio::log.error "ERROR: X server failed to establish connection. Check Xorg logs."
+# Vérification de l'échec après l'attente
+if ! xset q >/dev/null 2>&1; then
+    bashio::log.error "ERROR: X server failed to start after $XSTARTUP seconds. Check Xorg logs."
     exit 1
 fi
 
