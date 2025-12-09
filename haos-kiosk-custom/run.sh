@@ -181,16 +181,16 @@ bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
 
-# Créer un xinitrc minimal qui garde X vivant
-cat > /tmp/.xinitrc << 'XINITRC'
-#!/bin/sh
-exec tail -f /dev/null
-XINITRC
-chmod +x /tmp/.xinitrc
-
-startx /tmp/.xinitrc -- $NOCURSOR :0 &
+# Lancer X en arrière-plan
+Xorg $NOCURSOR &
 X_PID=$!
 bashio::log.info "X server PID: $X_PID"
+
+# Lancer openbox IMMÉDIATEMENT pour garder X actif
+(
+    sleep 2
+    DISPLAY=:0 openbox &
+) &
 
 XSTARTUP=90
 for ((i=0; i<=XSTARTUP; i++)); do
