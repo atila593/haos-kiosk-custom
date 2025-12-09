@@ -200,6 +200,17 @@ done
 # Vérification de l'échec après l'attente
 if ! xset q >/dev/null 2>&1; then
     bashio::log.error "ERROR: X server failed to start after $XSTARTUP seconds. Check Xorg logs."
+    
+    # AJOUTER ICI L'AFFICHAGE DU LOG POUR LE DIAGNOSTIC
+    bashio::log.error "--- Xorg.0.log (50 dernières lignes) ---"
+    if [ -f "/var/log/Xorg.0.log" ]; then
+        # Utilisation de 'sed' pour indenter le log et le rendre lisible dans les logs de l'addon
+        tail -n 50 /var/log/Xorg.0.log | sed 's/^/  /g'
+    else
+        bashio::log.error "Le fichier /var/log/Xorg.0.log est introuvable. Xorg n'a peut-être même pas démarré."
+    fi
+    bashio::log.error "---------------------------------------"
+    
     exit 1
 fi
 
