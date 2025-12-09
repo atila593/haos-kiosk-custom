@@ -182,15 +182,9 @@ NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
 
 # Lancer X en arrière-plan
-Xorg $NOCURSOR &
+Xorg $NOCURSOR -retro &
 X_PID=$!
 bashio::log.info "X server PID: $X_PID"
-
-# Lancer openbox IMMÉDIATEMENT pour garder X actif
-(
-    sleep 2
-    DISPLAY=:0 openbox &
-) &
 
 XSTARTUP=90
 for ((i=0; i<=XSTARTUP; i++)); do
