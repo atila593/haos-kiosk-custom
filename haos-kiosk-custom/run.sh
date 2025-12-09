@@ -181,8 +181,26 @@ bashio::log.info "Starting X on DISPLAY=$DISPLAY..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
 
-bashio::log.info "Waiting 5 seconds for X to initialize..."
-sleep 5
+bashio::log.info "Waiting for X server connection (Max 15 seconds)..."
+
+# Exporter la variable DISPLAY est CRUCIAL avant le test et le lancement des clients X
+export DISPLAY=:0 
+
+X_READY=0
+for i in $(seq 1 30); do # 30 boucles * 0.5 seconde = 15 secondes max
+    # 'xset q' est un outil client léger qui teste la connexion au serveur X.
+    if xset q > /dev/null 2>&1; then
+        X_READY=1
+        bashio::log.info "X server connection established after $((i * 500))ms."
+        break
+    fi
+    sleep 0.5
+done
+
+if [ "$X_READY" -eq 0 ]; then
+    bashio::log.error "ERROR: X server failed to establish connection. Check Xorg logs."
+    exit 1
+fi
 
 # Restore /dev/tty0
 if [ -n "$TTY0_DELETED" ]; then
