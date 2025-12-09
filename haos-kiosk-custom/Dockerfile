@@ -8,6 +8,7 @@ RUN apk update && apk add --no-cache \
     xf86-video-fbdev \
     xf86-video-modesetting \
     xf86-input-libinput \
+    xinput \
     dbus \
     ttf-freefont \
     firefox-esr \
