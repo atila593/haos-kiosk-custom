@@ -308,10 +308,10 @@ python3 /rest_server.py &
 #### FIREFOX LAUNCH
 ################################################################################
 FIREFOX_PROFILE="/tmp/firefox-kiosk-profile"
-    rm -rf "$FIREFOX_PROFILE" 2>/dev/null
-    mkdir -p "$FIREFOX_PROFILE"
+rm -rf "$FIREFOX_PROFILE" 2>/dev/null
+mkdir -p "$FIREFOX_PROFILE"
 
-    cat > "$FIREFOX_PROFILE/user.js" << 'FIREFOXEOF'
+cat > "$FIREFOX_PROFILE/user.js" << 'FIREFOXEOF'
 user_pref("browser.startup.homepage", "${HA_URL}/${HA_DASHBOARD}");
 user_pref("browser.fullscreen.autohide", false);
 user_pref("browser.tabs.warnOnClose", false);
