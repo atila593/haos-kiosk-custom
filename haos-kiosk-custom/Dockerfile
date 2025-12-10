@@ -15,7 +15,7 @@ RUN apk update && apk add --no-cache \
         xrandr \
         setxkbmap \
         xkeyboard-config \
-        firefox-esr \
+        chromium \           <-- NOUVEAU NAVIGATEUR
         py3-pip \
         python3 \
         bash \
@@ -30,11 +30,11 @@ RUN rm -rf /usr/share/luakit || true \
 
 # Copy scripts (keyboard, rest server, launcher)
 COPY toggle_keyboard.py rest_server.py /
-RUN pip install --no-cache-dir --break-system-packages aiohttp
+# Attention : pip est pour Python 3, donc utilisez 'pip3' sur Alpine.
+RUN pip3 install --no-cache-dir --break-system-packages aiohttp
 
 # Installer ton run.sh
 COPY run.sh /
 RUN chmod a+x /run.sh
 
 CMD ["/run.sh"]
-
