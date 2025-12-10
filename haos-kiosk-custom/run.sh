@@ -1,10 +1,10 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
-VERSION="1.1.1-firefox"
+VERSION="1.1.1-chromium"
 
 echo "."
 printf '%*s\n' 80 '' | tr ' ' '#'
-bashio::log.info "######## Starting HAOSKiosk (Firefox Edition) ########"
+bashio::log.info "######## Starting HAOSKiosk (Chromium Edition) ########"
 bashio::log.info "$(date) [Version: $VERSION]"
 bashio::log.info "$(uname -a)"
 ha_info=$(bashio::info)
@@ -187,7 +187,7 @@ bashio::log.info "Waiting 5 seconds for X to initialize..."
 sleep 5
 
 #if [ -n "$TTY0_DELETED" ]; then
-#   if mknod -m 620 /dev/tty0 c 4 0; then
+#    if mknod -m 620 /dev/tty0 c 4 0; then
 #        bashio::log.info "Restored /dev/tty0 successfully..."
 #    else
 #        bashio::log.error "Failed to restore /dev/tty0..."
@@ -305,63 +305,57 @@ bashio::log.info "Starting HAOSKiosk REST server..."
 python3 /rest_server.py &
 
 ################################################################################
-#### FIREFOX LAUNCH
+#### CHROMIUM LAUNCH
 ################################################################################
-FIREFOX_PROFILE="/tmp/firefox-kiosk-profile"
-rm -rf "$FIREFOX_PROFILE" 2>/dev/null
-mkdir -p "$FIREFOX_PROFILE"
 
-cat > "$FIREFOX_PROFILE/user.js" << 'FIREFOXEOF'
-user_pref("browser.startup.homepage", "${HA_URL}/${HA_DASHBOARD}");
-user_pref("browser.fullscreen.autohide", false);
-user_pref("browser.tabs.warnOnClose", false);
-user_pref("browser.sessionstore.resume_from_crash", false);
-user_pref("browser.shell.checkDefaultBrowser", false);
-user_pref("toolkit.telemetry.enabled", false);
-user_pref("datareporting.policy.dataSubmissionEnabled", false);
-user_pref("privacy.donottrackheader.enabled", true);
-user_pref("media.autoplay.default", 0);
-user_pref("media.autoplay.blocking_policy", 0);
-user_pref("layers.acceleration.disabled", true);
-FIREFOXEOF
+# 1. Calculate Zoom/DPI scale factor
+ZOOM_DPI=$(awk "BEGIN {printf \"%.2f\", $ZOOM_LEVEL / 100}")
 
-if [ "$DARK_MODE" = true ]; then
-    echo 'user_pref("ui.systemUsesDarkTheme", 1);' >> "$FIREFOX_PROFILE/user.js"
-fi
+# 2. Build the command line flags
+CHROME_FLAGS="\
+    --no-sandbox \
+    --disable-gpu \
+    --disable-software-rasterizer \
+    --kiosk \
+    --disable-infobars \
+    --force-device-scale-factor=$ZOOM_DPI \
+    --disable-features=TranslateUI,ImprovedEmailValidation \
+    --window-size=$SCREEN_WIDTH,$SCREEN_HEIGHT"
 
-ZOOM_DECIMAL=$(awk "BEGIN {printf \"%.2f\", $ZOOM_LEVEL / 100}")
-echo "user_pref(\"layout.css.devPixelsPerPx\", \"$ZOOM_DECIMAL\");" >> "$FIREFOX_PROFILE/user.js"
+# 3. Add Dark Mode flag if requested
+[ "$DARK_MODE" = true ] && CHROME_FLAGS="$CHROME_FLAGS --force-dark-mode"
 
 FULL_URL="${HA_URL}/${HA_DASHBOARD}"
-bashio::log.info "Launching Firefox to: $FULL_URL"
-bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DECIMAL)"
+bashio::log.info "Launching Chromium to: $FULL_URL"
+bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DPI)"
+bashio::log.info "Launch flags: $CHROME_FLAGS"
 
-firefox --profile "$FIREFOX_PROFILE" "$FULL_URL" > /tmp/firefox.log 2>&1 &
-FIREFOX_PID=$!
-bashio::log.info "Firefox launched (PID: $FIREFOX_PID)"
+chromium $CHROME_FLAGS "$FULL_URL" > /tmp/chromium.log 2>&1 &
+CHROME_PID=$!
+bashio::log.info "Chromium launched (PID: $CHROME_PID)"
 
 sleep "$LOGIN_DELAY"
 
-#(
-#    sleep 3
-#    WINDOW_ID=$(xdotool search --name "Mozilla Firefox" 2>/dev/null | head -1)
-#    if [ -n "$WINDOW_ID" ]; then
-#        bashio::log.info "Auto-login: Found Firefox window $WINDOW_ID"
-#        xdotool windowactivate --sync "$WINDOW_ID"
-#        sleep 1
-#        bashio::log.info "Typing username..."
-#        xdotool type --delay 100 "$HA_USERNAME"
-#        xdotool key Tab
-#        sleep 0.5
-#        bashio::log.info "Typing password..."
-#        xdotool type --delay 100 "$HA_PASSWORD"
-#        sleep 0.5
-#        xdotool key Return
-#        bashio::log.info "✓ Auto-login completed"
-# 
-#else
-#        bashio::log.warning "Firefox window not found for auto-login"
-#    fi
-#) &
+(
+    sleep 3
+    # Search for the Chromium window name
+    WINDOW_ID=$(xdotool search --name "Chromium" 2>/dev/null | head -1)
+    if [ -n "$WINDOW_ID" ]; then
+        bashio::log.info "Auto-login: Found Chromium window $WINDOW_ID"
+        xdotool windowactivate --sync "$WINDOW_ID"
+        sleep 1
+        bashio::log.info "Typing username..."
+        xdotool type --delay 100 "$HA_USERNAME"
+        xdotool key Tab
+        sleep 0.5
+        bashio::log.info "Typing password..."
+        xdotool type --delay 100 "$HA_PASSWORD"
+        sleep 0.5
+        xdotool key Return
+        bashio::log.info "✓ Auto-login completed"
+    else
+        bashio::log.warning "Chromium window not found for auto-login"
+    fi
+) &
 
-wait "$FIREFOX_PID"
+wait "$CHROME_PID"
