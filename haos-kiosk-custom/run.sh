@@ -154,7 +154,7 @@ else
     cat > /etc/X11/xorg.conf << 'EOF'
 Section "Device"
     Identifier      "Card0"
-    Driver          "fbdev"
+    Driver          "modesetting"
 EndSection
 
 Section "Screen"
