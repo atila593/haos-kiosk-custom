@@ -3,7 +3,7 @@ name: "haos-kiosk-custom"
 description: |
   Start X server and browser on local HAOS server and display dashboards in
   kiosk mode (atila593)
-version: "1.1.1"
+version: "1.1.2"
 slug: "haos-kiosk-custom"
 
 arch:
@@ -58,7 +58,7 @@ devices:
 map:
   - addon_config:rw
 
-privileged: true
+privileged:
   - SYS_ADMIN
 
 options:
