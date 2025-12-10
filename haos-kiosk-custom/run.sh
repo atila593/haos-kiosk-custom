@@ -154,8 +154,7 @@ else
     cat > /etc/X11/xorg.conf << 'EOF'
 Section "Device"
     Identifier "Card0"
-    Driver "intel"
-    Option "AccelMethod" "sna"
+    Driver "modesetting"
 EndSection
 
 Section "Screen"
