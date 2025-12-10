@@ -325,7 +325,7 @@ user_pref("media.autoplay.blocking_policy", 0);
 FIREFOXEOF
 
 if [ "$DARK_MODE" = true ]; then
-     echo 'user_pref("ui.systemUsesDarkTheme", 1);' >> "$FIREFOX_PROFILE/user.js"
+    echo 'user_pref("ui.systemUsesDarkTheme", 1);' >> "$FIREFOX_PROFILE/user.js"
 fi
 
 ZOOM_DECIMAL=$(awk "BEGIN {printf \"%.2f\", $ZOOM_LEVEL / 100}")
