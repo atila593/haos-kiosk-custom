@@ -8,6 +8,8 @@ RUN apk update && apk add --no-cache \
     xf86-video-fbdev \
     xf86-video-modesetting \
     xf86-input-libinput \
+    setxkbmap \          <-- AJOUTEZ CECI
+    xkeyboard-config \   <-- AJOUTEZ CECI
     openbox \
     xinput \
     xset \               
