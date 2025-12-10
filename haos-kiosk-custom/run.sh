@@ -307,8 +307,6 @@ python3 /rest_server.py &
 ################################################################################
 #### FIREFOX LAUNCH
 ################################################################################
-# REMPLACER la ligne ci-dessous par 'if true; then' pour forcer l'exécution du navigateur.
-# Ancien: if [ "$DEBUG_MODE" != true ]; then
 if true; then
     FIREFOX_PROFILE="/tmp/firefox-kiosk-profile"
     rm -rf "$FIREFOX_PROFILE" 2>/dev/null
@@ -366,5 +364,4 @@ FIREFOXEOF
     ) &
 
     wait "$FIREFOX_PID"
-fi 
-# Supprimez le bloc 'else' complet qui contenait le mode debug.
+fi
