@@ -307,7 +307,8 @@ python3 /rest_server.py &
 ################################################################################
 #### FIREFOX LAUNCH
 ################################################################################
-if [ 1 -eq 1 ]; then
+if [ 1 -eq 1 ]
+then
     FIREFOX_PROFILE="/tmp/firefox-kiosk-profile"
     rm -rf "$FIREFOX_PROFILE" 2>/dev/null
     mkdir -p "$FIREFOX_PROFILE"
