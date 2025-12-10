@@ -181,13 +181,21 @@ bashio::log.info "Starting X on DISPLAY=:0..."
 NOCURSOR=""
 [ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
 
-# Lancer X en arrière-plan
 Xorg $NOCURSOR </dev/null &
 
-# Attendre un délai fixe pour l'initialisation de X
 bashio::log.info "Waiting 5 seconds for X to initialize..."
 sleep 5
 
+if [ -n "$TTY0_DELETED" ]; then
+    if mknod -m 620 /dev/tty0 c 4 0; then
+        bashio::log.info "Restored /dev/tty0 successfully..."
+    else
+        bashio::log.error "Failed to restore /dev/tty0..."
+    fi
+fi
+
+bashio::log.info "X initialization complete, continuing..."
+export DISPLAY=:0
 
 # Restore /dev/tty0
 if [ -n "$TTY0_DELETED" ]; then
