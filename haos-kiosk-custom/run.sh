@@ -186,13 +186,13 @@ Xorg $NOCURSOR </dev/null &
 bashio::log.info "Waiting 5 seconds for X to initialize..."
 sleep 5
 
-if [ -n "$TTY0_DELETED" ]; then
-    if mknod -m 620 /dev/tty0 c 4 0; then
-        bashio::log.info "Restored /dev/tty0 successfully..."
-    else
-        bashio::log.error "Failed to restore /dev/tty0..."
-    fi
-fi
+#if [ -n "$TTY0_DELETED" ]; then
+#   if mknod -m 620 /dev/tty0 c 4 0; then
+#        bashio::log.info "Restored /dev/tty0 successfully..."
+#    else
+#        bashio::log.error "Failed to restore /dev/tty0..."
+#    fi
+#fi
 
 bashio::log.info "X initialization complete, continuing..."
 export DISPLAY=:0
