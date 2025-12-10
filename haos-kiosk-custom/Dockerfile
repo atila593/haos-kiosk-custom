@@ -10,11 +10,11 @@ RUN apk update && apk add --no-cache \
         xinput \
         dbus \
         ttf-freefont \
-        openbox \           <-- Gestionnaire de fenêtres
-        xset \              <-- Utilitaire Xorg (économiseur d'écran)
-        xrandr \            <-- Utilitaire Xorg (rotation/résolution)
-        setxkbmap \         <-- Utilitaire Xorg (configuration clavier)
-        xkeyboard-config \  <-- Base de données de configuration clavier
+        openbox \
+        xset \
+        xrandr \
+        setxkbmap \
+        xkeyboard-config \
         firefox-esr \
         py3-pip \
         python3 \
@@ -24,6 +24,7 @@ RUN apk update && apk add --no-cache \
         util-linux \
         procps \
         tini
+        
 RUN rm -rf /usr/share/luakit || true \
     && rm -rf /root/.config/luakit || true
 
