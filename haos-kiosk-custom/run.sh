@@ -179,40 +179,15 @@ echo "."
 
 bashio::log.info "Starting X on DISPLAY=:0..."
 NOCURSOR=""
-[ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor" # No cursor if <0
+[ "$CURSOR_TIMEOUT" -lt 0 ] && NOCURSOR="-nocursor"
 
-# Lancement du serveur Xorg en arrière-plan
-Xorg :0 -nolisten tcp $NOCURSOR </dev/null &
+# Lancer X en arrière-plan
+Xorg $NOCURSOR </dev/null &
 
-# Définition de la variable d'attente (30 secondes max)
-XSTARTUP=30 
-bashio::log.info "Waiting for X server connection (Max $XSTARTUP seconds)..."
+# Attendre un délai fixe pour l'initialisation de X
+bashio::log.info "Waiting 5 seconds for X to initialize..."
+sleep 5
 
-# Boucle d'attente dynamique
-for ((i=0; i<=XSTARTUP; i++)); do
-    if xset q >/dev/null 2>&1; then
-        bashio::log.info "X server connection established after $i seconds."
-        break # Le serveur est prêt
-    fi
-    sleep 1
-done
-
-# Vérification de l'échec après l'attente
-if ! xset q >/dev/null 2>&1; then
-    bashio::log.error "ERROR: X server failed to start after $XSTARTUP seconds. Check Xorg logs."
-    
-    # AJOUTER ICI L'AFFICHAGE DU LOG POUR LE DIAGNOSTIC
-    bashio::log.error "--- Xorg.0.log (50 dernières lignes) ---"
-    if [ -f "/var/log/Xorg.0.log" ]; then
-        # Utilisation de 'sed' pour indenter le log et le rendre lisible dans les logs de l'addon
-        tail -n 50 /var/log/Xorg.0.log | sed 's/^/  /g'
-    else
-        bashio::log.error "Le fichier /var/log/Xorg.0.log est introuvable. Xorg n'a peut-être même pas démarré."
-    fi
-    bashio::log.error "---------------------------------------"
-    
-    exit 1
-fi
 
 # Restore /dev/tty0
 if [ -n "$TTY0_DELETED" ]; then
