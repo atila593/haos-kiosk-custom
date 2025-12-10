@@ -153,14 +153,14 @@ else
     bashio::log.info "Creating default xorg.conf manually..."
     cat > /etc/X11/xorg.conf << 'EOF'
 Section "Device"
-    Identifier      "Card0"
-    Driver          "intel"
+    Identifier "Card0"
+    Driver "intel"
     Option "AccelMethod" "sna"
 EndSection
 
 Section "Screen"
-    Identifier      "Screen0"
-    Device          "Card0"
+    Identifier "Screen0"
+    Device "Card0"
 EndSection
 EOF
 
