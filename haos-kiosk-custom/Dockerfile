@@ -1,33 +1,29 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# Install firefox and necessary dependencies
 RUN apk update && apk add --no-cache \
-    xorg-server \
-    xf86-video-intel \
-    xf86-video-fbdev \
-    xf86-video-modesetting \
-    xf86-input-libinput \
-    setxkbmap \
-    xkeyboard-config \
-    openbox \
-    xinput \
-    xset \               
-    xrandr \
-    dbus \
-    ttf-freefont \
-    firefox-esr \
-    py3-pip \
-    python3 \
-    bash \
-    patch \
-    eudev \
-    util-linux \
-    # Tools for debugging
-    procps \
-    tini
-
-# Clean old Luakit files if present (optional safety)
+        xorg-server \
+        xf86-video-intel \
+        xf86-video-fbdev \
+        xf86-video-modesetting \
+        xf86-input-libinput \
+        xinput \
+        dbus \
+        ttf-freefont \
+        openbox \           <-- Gestionnaire de fenêtres
+        xset \              <-- Utilitaire Xorg (économiseur d'écran)
+        xrandr \            <-- Utilitaire Xorg (rotation/résolution)
+        setxkbmap \         <-- Utilitaire Xorg (configuration clavier)
+        xkeyboard-config \  <-- Base de données de configuration clavier
+        firefox-esr \
+        py3-pip \
+        python3 \
+        bash \
+        patch \
+        eudev \
+        util-linux \
+        procps \
+        tini
 RUN rm -rf /usr/share/luakit || true \
     && rm -rf /root/.config/luakit || true
 
