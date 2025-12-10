@@ -10,6 +10,8 @@ RUN apk update && apk add --no-cache \
     xf86-input-libinput \
     openbox \
     xinput \
+    xset \               
+    xrandr \
     dbus \
     ttf-freefont \
     firefox-esr \
