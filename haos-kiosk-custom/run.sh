@@ -335,31 +335,32 @@ FULL_URL="${HA_URL}/${HA_DASHBOARD}"
 bashio::log.info "Launching Firefox to: $FULL_URL"
 bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DECIMAL)"
 
-firefox --kiosk --profile "$FIREFOX_PROFILE" "$FULL_URL" > /tmp/firefox.log 2>&1 &
+firefox --profile "$FIREFOX_PROFILE" "$FULL_URL" > /tmp/firefox.log 2>&1 &
 FIREFOX_PID=$!
 bashio::log.info "Firefox launched (PID: $FIREFOX_PID)"
 
 sleep "$LOGIN_DELAY"
 
-(
-    sleep 3
-    WINDOW_ID=$(xdotool search --name "Mozilla Firefox" 2>/dev/null | head -1)
-    if [ -n "$WINDOW_ID" ]; then
-        bashio::log.info "Auto-login: Found Firefox window $WINDOW_ID"
-        xdotool windowactivate --sync "$WINDOW_ID"
-        sleep 1
-        bashio::log.info "Typing username..."
-        xdotool type --delay 100 "$HA_USERNAME"
-        xdotool key Tab
-        sleep 0.5
-        bashio::log.info "Typing password..."
-        xdotool type --delay 100 "$HA_PASSWORD"
-        sleep 0.5
-        xdotool key Return
-        bashio::log.info "✓ Auto-login completed"
-    else
-        bashio::log.warning "Firefox window not found for auto-login"
-    fi
-) &
+#(
+#    sleep 3
+#    WINDOW_ID=$(xdotool search --name "Mozilla Firefox" 2>/dev/null | head -1)
+#    if [ -n "$WINDOW_ID" ]; then
+#        bashio::log.info "Auto-login: Found Firefox window $WINDOW_ID"
+#        xdotool windowactivate --sync "$WINDOW_ID"
+#        sleep 1
+#        bashio::log.info "Typing username..."
+#        xdotool type --delay 100 "$HA_USERNAME"
+#        xdotool key Tab
+#        sleep 0.5
+#        bashio::log.info "Typing password..."
+#        xdotool type --delay 100 "$HA_PASSWORD"
+#        sleep 0.5
+#        xdotool key Return
+#        bashio::log.info "✓ Auto-login completed"
+# 
+#else
+#        bashio::log.warning "Firefox window not found for auto-login"
+#    fi
+#) &
 
 wait "$FIREFOX_PID"
