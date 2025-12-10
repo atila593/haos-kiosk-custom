@@ -322,6 +322,7 @@ user_pref("datareporting.policy.dataSubmissionEnabled", false);
 user_pref("privacy.donottrackheader.enabled", true);
 user_pref("media.autoplay.default", 0);
 user_pref("media.autoplay.blocking_policy", 0);
+user_pref("layers.acceleration.disabled", true);
 FIREFOXEOF
 
 if [ "$DARK_MODE" = true ]; then
