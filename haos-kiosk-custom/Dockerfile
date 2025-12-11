@@ -2,31 +2,30 @@ ARG BUILD_FROM
 FROM $BUILD_FROM
 
 RUN apk update && apk add --no-cache \
-        xorg-server \
-        xf86-video-intel \
-        xf86-video-fbdev \
-        xf86-video-modesetting \
-        xf86-input-libinput \
-        xinput \
-        dbus \
-        ttf-freefont \
-        openbox \
-        xset \
-        xrandr \
-        setxkbmap \
-        xkeyboard-config \
-        chromium \           <-- NOUVEAU NAVIGATEUR
-        py3-pip \
-        python3 \
-        bash \
-        patch \
-        eudev \
-        util-linux \
-        procps \
-        tini
-        
+    xorg-server \
+    xf86-video-intel \
+    xf86-video-fbdev \
+    xf86-video-modesetting \
+    xf86-input-libinput \
+    xinput \
+    dbus \
+    ttf-freefont \
+    openbox \
+    xset \
+    xrandr \
+    setxkbmap \
+    xkeyboard-config \
+    chromium \           # Navigateur (ligne 18)
+    py3-pip \            # Dépendance de Python (ligne 19)
+    python3 \
+    bash \
+    patch \
+    eudev \
+    util-linux \
+    procps \
+    tini                 # Dernière dépendance SANS '\'
+    
 RUN rm -rf /usr/share/luakit || true \
-    && rm -rf /root/.config/luakit || true
 
 # Copy scripts (keyboard, rest server, launcher)
 COPY toggle_keyboard.py rest_server.py /
