@@ -340,7 +340,7 @@ sleep "$LOGIN_DELAY"
 
 (
     # Attendre 5 secondes après le délai initial, pour être doublement sûr
-    sleep 5 
+    sleep 5
     
     # Recherche par titre de fenêtre (le plus fiable)
     WINDOW_ID=$(xdotool search --onlyvisible --name ".*Home Assistant.*" 2>/dev/null | head -1)
@@ -349,7 +349,7 @@ sleep "$LOGIN_DELAY"
         bashio::log.info "Auto-login: Found Home Assistant window $WINDOW_ID"
         xdotool windowactivate --sync "$WINDOW_ID"
         
-        # NOUVELLE ÉTAPE : Forcer un clic près du centre (1000, 500) pour activer le formulaire
+        # Forcer un clic près du centre (1000, 500) pour activer le formulaire
         bashio::log.info "Forcing click to focus login form..."
         xdotool mousemove --window "$WINDOW_ID" 1000 500 click 1
         
