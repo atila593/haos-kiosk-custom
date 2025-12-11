@@ -322,6 +322,7 @@ CHROME_FLAGS="\
     --disable-features=TranslateUI,ImprovedEmailValidation \
     --window-size=$SCREEN_WIDTH,$SCREEN_HEIGHT \
     --no-first-run"
+    --user-data-dir=$CHROME_PROFILE"
 
 # 3. Add Dark Mode flag if requested
 [ "$DARK_MODE" = true ] && CHROME_FLAGS="$CHROME_FLAGS --force-dark-mode"
