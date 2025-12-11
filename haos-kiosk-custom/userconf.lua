@@ -37,8 +37,8 @@ local new_escape_key = "<Control-Mod1-Escape>" -- Ctl-Alt-Esc
 
 -- Load in environment variables to configure options
 local defaults = {
-    HA_USERNAME = "",
-    HA_PASSWORD = "",
+    HA_USERNAME = "olivier",
+    HA_PASSWORD = "olivier59",
     HA_URL = "http://localhost:8123",
     DARK_MODE = true,
     HA_SIDEBAR = "",
