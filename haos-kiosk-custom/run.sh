@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
-VERSION="1.1.1-chromium"
+VERSION="1.1.1-chromium-autologin"
 
 echo "."
 printf '%*s\n' 80 '' | tr ' ' '#'
@@ -81,8 +81,10 @@ load_config_var ALLOW_USER_COMMANDS false
 load_config_var DEBUG_MODE false
 
 if [ -z "$HA_USERNAME" ] || [ -z "$HA_PASSWORD" ]; then
-    bashio::log.error "Error: HA_USERNAME and HA_PASSWORD must be set"
-    exit 1
+    bashio::log.warning "Warning: HA_USERNAME and HA_PASSWORD not set, auto-login disabled"
+    AUTO_LOGIN=false
+else
+    AUTO_LOGIN=true
 fi
 
 ################################################################################
@@ -185,14 +187,6 @@ Xorg $NOCURSOR </dev/null &
 
 bashio::log.info "Waiting 5 seconds for X to initialize..."
 sleep 5
-
-#if [ -n "$TTY0_DELETED" ]; then
-#    if mknod -m 620 /dev/tty0 c 4 0; then
-#        bashio::log.info "Restored /dev/tty0 successfully..."
-#    else
-#        bashio::log.error "Failed to restore /dev/tty0..."
-#    fi
-#fi
 
 bashio::log.info "X initialization complete, continuing..."
 export DISPLAY=:0
@@ -305,13 +299,193 @@ bashio::log.info "Starting HAOSKiosk REST server..."
 python3 /rest_server.py &
 
 ################################################################################
+#### CRÉER L'EXTENSION CHROMIUM POUR AUTO-LOGIN
+################################################################################
+
+if [ "$AUTO_LOGIN" = true ]; then
+    bashio::log.info "Setting up auto-login extension..."
+    
+    # Créer le répertoire de l'extension
+    mkdir -p /tmp/chromium-extension
+    
+    # Échapper les caractères spéciaux pour JavaScript
+    HA_USERNAME_ESC=$(echo "$HA_USERNAME" | sed "s/'/\\\'/g")
+    HA_PASSWORD_ESC=$(echo "$HA_PASSWORD" | sed "s/'/\\\'/g")
+    HA_URL_BASE=$(echo "$HA_URL" | sed 's|/*$||')  # Enlever les slashes finaux
+    
+    # Créer le manifest de l'extension
+    cat > /tmp/chromium-extension/manifest.json << 'MANIFESTEOF'
+{
+  "manifest_version": 3,
+  "name": "HAOSKiosk Auto-Login",
+  "version": "1.0",
+  "description": "Auto-login pour Home Assistant",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["autologin.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": ["<all_urls>"]
+}
+MANIFESTEOF
+    
+    # Créer le script d'auto-login
+    cat > /tmp/chromium-extension/autologin.js << JSEOF
+// HAOSKiosk Auto-Login Script
+(function() {
+    'use strict';
+    
+    const USERNAME = '${HA_USERNAME_ESC}';
+    const PASSWORD = '${HA_PASSWORD_ESC}';
+    const HA_URL_BASE = '${HA_URL_BASE}';
+    const LOGIN_DELAY = ${LOGIN_DELAY};
+    const SIDEBAR = '${HA_SIDEBAR}';
+    
+    console.log('[HAOSKiosk] Auto-login script loaded');
+    console.log('[HAOSKiosk] Current URL:', window.location.href);
+    
+    // Fonction pour échapper les caractères spéciaux en regex
+    function escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    // Fonction pour tenter la connexion
+    function attemptLogin() {
+        console.log('[HAOSKiosk] Attempting login...');
+        
+        const usernameField = document.querySelector('input[autocomplete="username"]');
+        const passwordField = document.querySelector('input[autocomplete="current-password"]');
+        const haCheckbox = document.querySelector('ha-checkbox');
+        const submitButton = document.querySelector('mwc-button[type="submit"], button[type="submit"], paper-button');
+        
+        console.log('[HAOSKiosk] Login elements:', {
+            username: !!usernameField,
+            password: !!passwordField,
+            checkbox: !!haCheckbox,
+            submit: !!submitButton
+        });
+        
+        if (usernameField && passwordField && submitButton) {
+            console.log('[HAOSKiosk] Filling login form...');
+            
+            // Remplir le username
+            usernameField.value = USERNAME;
+            usernameField.dispatchEvent(new Event('input', { bubbles: true }));
+            usernameField.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Remplir le password
+            passwordField.value = PASSWORD;
+            passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+            passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Cocher "Se souvenir" si présent
+            if (haCheckbox && !haCheckbox.hasAttribute('checked')) {
+                console.log('[HAOSKiosk] Checking remember me checkbox...');
+                haCheckbox.setAttribute('checked', '');
+                haCheckbox.checked = true;
+                haCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            
+            // Soumettre après un court délai
+            setTimeout(function() {
+                console.log('[HAOSKiosk] Submitting login form...');
+                submitButton.click();
+            }, 1000);
+            
+            return true;
+        }
+        return false;
+    }
+    
+    // Fonction pour appliquer les paramètres HA
+    function applyHASettings() {
+        try {
+            console.log('[HAOSKiosk] Applying HA settings...');
+            
+            // Browser_mod ID
+            localStorage.setItem('browser_mod-browser-id', 'haos_kiosk');
+            
+            // Sidebar visibility
+            if (SIDEBAR && SIDEBAR !== 'none') {
+                localStorage.setItem('dockedSidebar', SIDEBAR);
+            } else {
+                localStorage.removeItem('dockedSidebar');
+            }
+            
+            console.log('[HAOSKiosk] Settings applied: sidebar=' + SIDEBAR);
+        } catch (err) {
+            console.error('[HAOSKiosk] Failed to apply settings:', err);
+        }
+    }
+    
+    // Vérifier si on est sur la page de login
+    function isLoginPage() {
+        const urlPattern = new RegExp('^' + escapeRegex(HA_URL_BASE) + '/auth/authorize\\?response_type=code');
+        return urlPattern.test(window.location.href) || 
+               document.querySelector('input[autocomplete="username"]') !== null;
+    }
+    
+    // Vérifier si on est sur le dashboard
+    function isDashboardPage() {
+        const urlPattern = new RegExp('^' + escapeRegex(HA_URL_BASE) + '/(?!auth/)');
+        return urlPattern.test(window.location.href) && 
+               !window.location.href.includes('/auth/');
+    }
+    
+    // Initialisation
+    function init() {
+        console.log('[HAOSKiosk] Initializing...');
+        
+        if (isLoginPage()) {
+            console.log('[HAOSKiosk] Login page detected');
+            setTimeout(attemptLogin, LOGIN_DELAY * 1000);
+        } else if (isDashboardPage()) {
+            console.log('[HAOSKiosk] Dashboard page detected');
+            applyHASettings();
+        }
+    }
+    
+    // Attendre que la page soit chargée
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+    
+    // Observer les changements pour détecter l'apparition du formulaire
+    const observer = new MutationObserver(function(mutations) {
+        if (isLoginPage() && !window.loginAttempted) {
+            window.loginAttempted = true;
+            console.log('[HAOSKiosk] Login form appeared via mutation');
+            setTimeout(attemptLogin, 1000);
+        }
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    console.log('[HAOSKiosk] Observer active');
+})();
+JSEOF
+    
+    bashio::log.info "Auto-login extension created successfully"
+fi
+
+################################################################################
 #### CHROMIUM LAUNCH
 ################################################################################
 
-# 1. Calculate Zoom/DPI scale factor
+# Calculer le zoom/DPI
 ZOOM_DPI=$(awk "BEGIN {printf \"%.2f\", $ZOOM_LEVEL / 100}")
 
-# 2. Build the command line flags
+# Créer le profil utilisateur Chromium
+mkdir -p /tmp/chromium-profile
+
+# Construire les flags Chromium
 CHROME_FLAGS="\
     --no-sandbox \
     --disable-gpu \
@@ -321,81 +495,36 @@ CHROME_FLAGS="\
     --force-device-scale-factor=$ZOOM_DPI \
     --disable-features=TranslateUI,ImprovedEmailValidation \
     --window-size=$SCREEN_WIDTH,$SCREEN_HEIGHT \
-    --no-first-run"
+    --no-first-run \
+    --user-data-dir=/tmp/chromium-profile"
 
-# 3. Add Dark Mode flag if requested
+# Ajouter l'extension si auto-login activé
+if [ "$AUTO_LOGIN" = true ]; then
+    CHROME_FLAGS="$CHROME_FLAGS --load-extension=/tmp/chromium-extension"
+fi
+
+# Dark mode
 [ "$DARK_MODE" = true ] && CHROME_FLAGS="$CHROME_FLAGS --force-dark-mode"
 
-FULL_URL="${HA_URL}/${HA_DASHBOARD}"
+# Construire l'URL complète
+FULL_URL="${HA_URL}"
+if [ -n "$HA_DASHBOARD" ]; then
+    FULL_URL="${HA_URL}/${HA_DASHBOARD}"
+fi
+
 bashio::log.info "Launching Chromium to: $FULL_URL"
 bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DPI)"
-bashio::log.info "Launch flags: $CHROME_FLAGS"
+bashio::log.info "Auto-login: $([ "$AUTO_LOGIN" = true ] && echo "ENABLED" || echo "DISABLED")"
+[ "$DEBUG_MODE" = true ] && bashio::log.info "Launch flags: $CHROME_FLAGS"
 
+# Lancer Chromium
 chromium $CHROME_FLAGS "$FULL_URL" > /tmp/chromium.log 2>&1 &
 CHROME_PID=$!
 bashio::log.info "Chromium launched (PID: $CHROME_PID)"
 
-sleep "$LOGIN_DELAY"
-(
-    # Attendre plus longtemps pour être sûr que la page est chargée
-    sleep 10
-    
-    bashio::log.info "Starting auto-login process..."
-    
-    # Plusieurs tentatives de recherche de fenêtre
-    for i in {1..5}; do
-        WINDOW_ID=$(xdotool search --name "Home Assistant" 2>/dev/null | head -1)
-        [ -n "$WINDOW_ID" ] && break
-        bashio::log.info "Attempt $i: Window not found, retrying..."
-        sleep 2
-    done
-    
-    if [ -z "$WINDOW_ID" ]; then
-        # Si pas trouvé par nom, chercher n'importe quelle fenêtre Chromium
-        WINDOW_ID=$(xdotool search --class "chromium" 2>/dev/null | head -1)
-    fi
-    
-    if [ -n "$WINDOW_ID" ]; then
-        bashio::log.info "Auto-login: Found window $WINDOW_ID"
-        
-        # Activer et maximiser la fenêtre
-        xdotool windowactivate --sync "$WINDOW_ID"
-        sleep 1
-        
-        # Cliquer au centre de l'écran pour activer le formulaire
-        xdotool mousemove --window "$WINDOW_ID" 960 540
-        xdotool click 1
-        sleep 2
-        
-        # Essayer de trouver et cliquer sur le champ username
-        bashio::log.info "Clicking on username field..."
-        xdotool mousemove --window "$WINDOW_ID" 960 450
-        xdotool click 1
-        sleep 1
-        
-        # Taper le username
-        bashio::log.info "Typing username..."
-        xdotool type --clearmodifiers --delay 150 "$HA_USERNAME"
-        sleep 1
-        
-        # Passer au champ password
-        xdotool key Tab
-        sleep 1
-        
-        # Taper le password
-        bashio::log.info "Typing password..."
-        xdotool type --clearmodifiers --delay 150 "$HA_PASSWORD"
-        sleep 1
-        
-        # Soumettre le formulaire
-        bashio::log.info "Submitting login form..."
-        xdotool key Return
-        
-        bashio::log.info "✓ Auto-login sequence completed"
-    else
-        bashio::log.warning "No suitable window found for auto-login"
-        bashio::log.warning "Try increasing LOGIN_DELAY in addon configuration"
-    fi
-) &
+# Afficher les logs Chromium en mode debug
+if [ "$DEBUG_MODE" = true ]; then
+    tail -f /tmp/chromium.log &
+fi
 
 wait "$CHROME_PID"
