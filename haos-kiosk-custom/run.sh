@@ -447,7 +447,9 @@ bashio::log.info "Chromium launched (PID: $CHROME_PID)"
 if [ "$AUTO_LOGIN" = true ]; then
     (
         # Attendre que la page soit chargée et redirigée vers /auth/authorize
-        TOTAL_WAIT=$((LOGIN_DELAY + 3))
+        # Convertir LOGIN_DELAY en entier pour l'arithmétique bash
+        LOGIN_DELAY_INT=${LOGIN_DELAY%.*}
+        TOTAL_WAIT=$((LOGIN_DELAY_INT + 3))
         bashio::log.info "Waiting ${TOTAL_WAIT}s for OAuth redirect and login page..."
         sleep $TOTAL_WAIT
         
