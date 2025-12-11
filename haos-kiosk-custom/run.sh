@@ -332,16 +332,16 @@ if [ "$AUTO_LOGIN" = true ]; then
 MANIFESTEOF
     
     # Créer le script d'auto-login
-    cat > /tmp/chromium-extension/autologin.js << JSEOF
+    cat > /tmp/chromium-extension/autologin.js << 'JSEOF'
 // HAOSKiosk Auto-Login Script
 (function() {
     'use strict';
     
-    const USERNAME = '${HA_USERNAME_ESC}';
-    const PASSWORD = '${HA_PASSWORD_ESC}';
-    const HA_URL_BASE = '${HA_URL_BASE}';
-    const LOGIN_DELAY = ${LOGIN_DELAY};
-    const SIDEBAR = '${HA_SIDEBAR}';
+    const USERNAME = '__USERNAME__';
+    const PASSWORD = '__PASSWORD__';
+    const HA_URL_BASE = '__HA_URL_BASE__';
+    const LOGIN_DELAY = __LOGIN_DELAY__;
+    const SIDEBAR = '__HA_SIDEBAR__';
     
     console.log('[HAOSKiosk] Auto-login script loaded');
     console.log('[HAOSKiosk] Current URL:', window.location.href);
@@ -471,6 +471,13 @@ MANIFESTEOF
     console.log('[HAOSKiosk] Observer active');
 })();
 JSEOF
+    
+    # Remplacer les placeholders par les vraies valeurs
+    sed -i "s|__USERNAME__|${HA_USERNAME_ESC}|g" /tmp/chromium-extension/autologin.js
+    sed -i "s|__PASSWORD__|${HA_PASSWORD_ESC}|g" /tmp/chromium-extension/autologin.js
+    sed -i "s|__HA_URL_BASE__|${HA_URL_BASE}|g" /tmp/chromium-extension/autologin.js
+    sed -i "s|__LOGIN_DELAY__|${LOGIN_DELAY}|g" /tmp/chromium-extension/autologin.js
+    sed -i "s|__HA_SIDEBAR__|${HA_SIDEBAR}|g" /tmp/chromium-extension/autologin.js
     
     bashio::log.info "Auto-login extension created successfully"
 fi
