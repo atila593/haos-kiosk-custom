@@ -337,7 +337,6 @@ CHROME_PID=$!
 bashio::log.info "Chromium launched (PID: $CHROME_PID)"
 
 sleep "$LOGIN_DELAY"
-
 (
     # Attendre 5 secondes après le délai initial, pour être doublement sûr
     sleep 5
