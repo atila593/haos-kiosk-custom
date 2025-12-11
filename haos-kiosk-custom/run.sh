@@ -338,12 +338,20 @@ bashio::log.info "Chromium launched (PID: $CHROME_PID)"
 sleep "$LOGIN_DELAY"
 
 (
-    sleep 3
-    # Search for the Chromium window name
-    WINDOW_ID=$(xdotool search --name "Chromium" 2>/dev/null | head -1)
+    # Attendre 5 secondes après le délai initial, pour être doublement sûr
+    sleep 5 
+    
+    # Recherche par titre de fenêtre (le plus fiable)
+    WINDOW_ID=$(xdotool search --onlyvisible --name ".*Home Assistant.*" 2>/dev/null | head -1)
+    
     if [ -n "$WINDOW_ID" ]; then
-        bashio::log.info "Auto-login: Found Chromium window $WINDOW_ID"
+        bashio::log.info "Auto-login: Found Home Assistant window $WINDOW_ID"
         xdotool windowactivate --sync "$WINDOW_ID"
+        
+        # NOUVELLE ÉTAPE : Forcer un clic près du centre (1000, 500) pour activer le formulaire
+        bashio::log.info "Forcing click to focus login form..."
+        xdotool mousemove --window "$WINDOW_ID" 1000 500 click 1
+        
         sleep 1
         bashio::log.info "Typing username..."
         xdotool type --delay 100 "$HA_USERNAME"
@@ -355,7 +363,7 @@ sleep "$LOGIN_DELAY"
         xdotool key Return
         bashio::log.info "✓ Auto-login completed"
     else
-        bashio::log.warning "Chromium window not found for auto-login"
+        bashio::log.warning "Home Assistant window not found for auto-login (Check 'login_delay' in options)"
     fi
 ) &
 
