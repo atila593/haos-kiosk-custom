@@ -425,17 +425,24 @@ CHROME_FLAGS="\
 [ "$DARK_MODE" = true ] && CHROME_FLAGS="$CHROME_FLAGS --force-dark-mode"
 
 # Construire l'URL complète
-# IMPORTANT: Aller d'abord sur la page d'accueil pour déclencher l'OAuth
 FULL_URL="${HA_URL}"
-TARGET_DASHBOARD=""
 if [ -n "$HA_DASHBOARD" ]; then
-    TARGET_DASHBOARD="${HA_URL}/${HA_DASHBOARD}"
+    FULL_URL="${HA_URL}/${HA_DASHBOARD}"
+    
+    # Ajouter hide_sidebar si configuré
+    if [ "$HA_SIDEBAR" = "none" ]; then
+        if [[ "$FULL_URL" == *"?"* ]]; then
+            FULL_URL="${FULL_URL}&hide_sidebar"
+        else
+            FULL_URL="${FULL_URL}?hide_sidebar"
+        fi
+        bashio::log.info "Sidebar will be hidden via URL parameter"
+    fi
 fi
 
 bashio::log.info "Launching Chromium to: $FULL_URL"
-[ -n "$TARGET_DASHBOARD" ] && bashio::log.info "Will navigate to dashboard: $TARGET_DASHBOARD after login"
 bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DPI)"
-bashio::log.info "Auto-login: $([ "$AUTO_LOGIN" = true ] && echo "ENABLED" || echo "DISABLED")"
+bashio::log.info "Auto-login: $([ "$AUTO_LOGIN" = true ] && echo "ENABLED" || echo "DISABLED (using trusted networks)")"
 [ "$DEBUG_MODE" = true ] && bashio::log.info "Launch flags: $CHROME_FLAGS"
 
 # Lancer Chromium
@@ -501,19 +508,6 @@ if [ "$AUTO_LOGIN" = true ]; then
         # Soumettre le formulaire avec Enter
         bashio::log.info "Submitting login form..."
         xdotool key Return
-        sleep 3
-        
-        # Si un dashboard spécifique est configuré, naviguer vers lui après login
-        if [ -n "$TARGET_DASHBOARD" ]; then
-            bashio::log.info "Navigating to dashboard: $TARGET_DASHBOARD"
-            sleep 2
-            # Utiliser Ctrl+L pour aller dans la barre d'adresse
-            xdotool key ctrl+l
-            sleep 1
-            xdotool type --delay 50 "$TARGET_DASHBOARD"
-            sleep 1
-            xdotool key Return
-        fi
         
         bashio::log.info "✓ Auto-login sequence completed"
         
