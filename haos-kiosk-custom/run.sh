@@ -299,187 +299,103 @@ bashio::log.info "Starting HAOSKiosk REST server..."
 python3 /rest_server.py &
 
 ################################################################################
-#### CRÉER L'EXTENSION CHROMIUM POUR AUTO-LOGIN
+#### CRÉER LE USERSCRIPT POUR AUTO-LOGIN
 ################################################################################
 
 if [ "$AUTO_LOGIN" = true ]; then
-    bashio::log.info "Setting up auto-login extension..."
-    
-    # Créer le répertoire de l'extension
-    mkdir -p /tmp/chromium-extension
+    bashio::log.info "Setting up auto-login userscript..."
     
     # Échapper les caractères spéciaux pour JavaScript
-    HA_USERNAME_ESC=$(echo "$HA_USERNAME" | sed "s/'/\\\'/g")
-    HA_PASSWORD_ESC=$(echo "$HA_PASSWORD" | sed "s/'/\\\'/g")
-    HA_URL_BASE=$(echo "$HA_URL" | sed 's|/*$||')  # Enlever les slashes finaux
+    HA_USERNAME_ESC=$(echo "$HA_USERNAME" | sed "s/'/\\\'/g" | sed 's/"/\\"/g')
+    HA_PASSWORD_ESC=$(echo "$HA_PASSWORD" | sed "s/'/\\\'/g" | sed 's/"/\\"/g')
+    HA_URL_BASE=$(echo "$HA_URL" | sed 's|/*$||')
     
-    # Créer le manifest de l'extension
-    cat > /tmp/chromium-extension/manifest.json << 'MANIFESTEOF'
-{
-  "manifest_version": 3,
-  "name": "HAOSKiosk Auto-Login",
-  "version": "1.0",
-  "description": "Auto-login pour Home Assistant",
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["autologin.js"],
-      "run_at": "document_idle"
-    }
-  ],
-  "host_permissions": ["<all_urls>"]
-}
-MANIFESTEOF
-    
-    # Créer le script d'auto-login
-    cat > /tmp/chromium-extension/autologin.js << 'JSEOF'
-// HAOSKiosk Auto-Login Script
+    # Créer le userscript
+    cat > /tmp/autologin.js << 'JSEOF'
 (function() {
-    'use strict';
+    console.log('[HAOSKiosk] Userscript loaded at', new Date().toISOString());
     
-    const USERNAME = '__USERNAME__';
-    const PASSWORD = '__PASSWORD__';
-    const HA_URL_BASE = '__HA_URL_BASE__';
-    const LOGIN_DELAY = __LOGIN_DELAY__;
-    const SIDEBAR = '__HA_SIDEBAR__';
+    const config = {
+        username: '__USERNAME__',
+        password: '__PASSWORD__',
+        haUrlBase: '__HA_URL_BASE__',
+        loginDelay: __LOGIN_DELAY__,
+        sidebar: '__HA_SIDEBAR__'
+    };
     
-    console.log('[HAOSKiosk] Auto-login script loaded');
-    console.log('[HAOSKiosk] Current URL:', window.location.href);
-    
-    // Fonction pour échapper les caractères spéciaux en regex
-    function escapeRegex(str) {
-        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-    
-    // Fonction pour tenter la connexion
     function attemptLogin() {
         console.log('[HAOSKiosk] Attempting login...');
         
-        const usernameField = document.querySelector('input[autocomplete="username"]');
-        const passwordField = document.querySelector('input[autocomplete="current-password"]');
-        const haCheckbox = document.querySelector('ha-checkbox');
-        const submitButton = document.querySelector('mwc-button[type="submit"], button[type="submit"], paper-button');
+        const username = document.querySelector('input[name="username"], input[autocomplete="username"], input[type="text"]');
+        const password = document.querySelector('input[name="password"], input[autocomplete="current-password"], input[type="password"]');
+        const submit = document.querySelector('button[type="submit"], mwc-button, paper-button');
         
-        console.log('[HAOSKiosk] Login elements:', {
-            username: !!usernameField,
-            password: !!passwordField,
-            checkbox: !!haCheckbox,
-            submit: !!submitButton
+        console.log('[HAOSKiosk] Found elements:', {
+            username: !!username,
+            password: !!password,
+            submit: !!submit
         });
         
-        if (usernameField && passwordField && submitButton) {
-            console.log('[HAOSKiosk] Filling login form...');
+        if (username && password && submit) {
+            username.value = config.username;
+            username.dispatchEvent(new Event('input', {bubbles: true}));
+            username.dispatchEvent(new Event('change', {bubbles: true}));
             
-            // Remplir le username
-            usernameField.value = USERNAME;
-            usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-            usernameField.dispatchEvent(new Event('change', { bubbles: true }));
+            password.value = config.password;
+            password.dispatchEvent(new Event('input', {bubbles: true}));
+            password.dispatchEvent(new Event('change', {bubbles: true}));
             
-            // Remplir le password
-            passwordField.value = PASSWORD;
-            passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-            passwordField.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            // Cocher "Se souvenir" si présent
-            if (haCheckbox && !haCheckbox.hasAttribute('checked')) {
-                console.log('[HAOSKiosk] Checking remember me checkbox...');
-                haCheckbox.setAttribute('checked', '');
-                haCheckbox.checked = true;
-                haCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-            
-            // Soumettre après un court délai
-            setTimeout(function() {
-                console.log('[HAOSKiosk] Submitting login form...');
-                submitButton.click();
-            }, 1000);
+            setTimeout(() => {
+                console.log('[HAOSKiosk] Clicking submit button');
+                submit.click();
+            }, 500);
             
             return true;
         }
         return false;
     }
     
-    // Fonction pour appliquer les paramètres HA
-    function applyHASettings() {
-        try {
-            console.log('[HAOSKiosk] Applying HA settings...');
-            
-            // Browser_mod ID
-            localStorage.setItem('browser_mod-browser-id', 'haos_kiosk');
-            
-            // Sidebar visibility
-            if (SIDEBAR && SIDEBAR !== 'none') {
-                localStorage.setItem('dockedSidebar', SIDEBAR);
-            } else {
-                localStorage.removeItem('dockedSidebar');
-            }
-            
-            console.log('[HAOSKiosk] Settings applied: sidebar=' + SIDEBAR);
-        } catch (err) {
-            console.error('[HAOSKiosk] Failed to apply settings:', err);
-        }
-    }
-    
-    // Vérifier si on est sur la page de login
-    function isLoginPage() {
-        const urlPattern = new RegExp('^' + escapeRegex(HA_URL_BASE) + '/auth/authorize\\?response_type=code');
-        return urlPattern.test(window.location.href) || 
-               document.querySelector('input[autocomplete="username"]') !== null;
-    }
-    
-    // Vérifier si on est sur le dashboard
-    function isDashboardPage() {
-        const urlPattern = new RegExp('^' + escapeRegex(HA_URL_BASE) + '/(?!auth/)');
-        return urlPattern.test(window.location.href) && 
-               !window.location.href.includes('/auth/');
-    }
-    
-    // Initialisation
-    function init() {
-        console.log('[HAOSKiosk] Initializing...');
+    function checkAndLogin() {
+        const isAuthPage = window.location.href.includes('/auth/');
+        const hasLoginForm = document.querySelector('input[type="password"]') !== null;
         
-        if (isLoginPage()) {
-            console.log('[HAOSKiosk] Login page detected');
-            setTimeout(attemptLogin, LOGIN_DELAY * 1000);
-        } else if (isDashboardPage()) {
-            console.log('[HAOSKiosk] Dashboard page detected');
-            applyHASettings();
+        console.log('[HAOSKiosk] Check:', {isAuthPage, hasLoginForm});
+        
+        if (isAuthPage || hasLoginForm) {
+            setTimeout(() => {
+                if (!attemptLogin()) {
+                    console.log('[HAOSKiosk] Login failed, will retry...');
+                    setTimeout(checkAndLogin, 2000);
+                }
+            }, config.loginDelay * 1000);
         }
     }
     
-    // Attendre que la page soit chargée
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', checkAndLogin);
     } else {
-        init();
+        checkAndLogin();
     }
     
-    // Observer les changements pour détecter l'apparition du formulaire
-    const observer = new MutationObserver(function(mutations) {
-        if (isLoginPage() && !window.loginAttempted) {
+    const observer = new MutationObserver(() => {
+        if (document.querySelector('input[type="password"]') && !window.loginAttempted) {
             window.loginAttempted = true;
-            console.log('[HAOSKiosk] Login form appeared via mutation');
-            setTimeout(attemptLogin, 1000);
+            checkAndLogin();
         }
     });
     
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-    
-    console.log('[HAOSKiosk] Observer active');
+    observer.observe(document.body, {childList: true, subtree: true});
 })();
 JSEOF
     
-    # Remplacer les placeholders par les vraies valeurs
-    sed -i "s|__USERNAME__|${HA_USERNAME_ESC}|g" /tmp/chromium-extension/autologin.js
-    sed -i "s|__PASSWORD__|${HA_PASSWORD_ESC}|g" /tmp/chromium-extension/autologin.js
-    sed -i "s|__HA_URL_BASE__|${HA_URL_BASE}|g" /tmp/chromium-extension/autologin.js
-    sed -i "s|__LOGIN_DELAY__|${LOGIN_DELAY}|g" /tmp/chromium-extension/autologin.js
-    sed -i "s|__HA_SIDEBAR__|${HA_SIDEBAR}|g" /tmp/chromium-extension/autologin.js
+    # Remplacer les placeholders
+    sed -i "s|__USERNAME__|${HA_USERNAME_ESC}|g" /tmp/autologin.js
+    sed -i "s|__PASSWORD__|${HA_PASSWORD_ESC}|g" /tmp/autologin.js
+    sed -i "s|__HA_URL_BASE__|${HA_URL_BASE}|g" /tmp/autologin.js
+    sed -i "s|__LOGIN_DELAY__|${LOGIN_DELAY}|g" /tmp/autologin.js
+    sed -i "s|__HA_SIDEBAR__|${HA_SIDEBAR}|g" /tmp/autologin.js
     
-    bashio::log.info "Auto-login extension created successfully"
+    bashio::log.info "Auto-login userscript created"
 fi
 
 ################################################################################
@@ -505,21 +421,19 @@ CHROME_FLAGS="\
     --no-first-run \
     --user-data-dir=/tmp/chromium-profile"
 
-# Ajouter l'extension si auto-login activé
-if [ "$AUTO_LOGIN" = true ]; then
-    CHROME_FLAGS="$CHROME_FLAGS --load-extension=/tmp/chromium-extension"
-fi
-
 # Dark mode
 [ "$DARK_MODE" = true ] && CHROME_FLAGS="$CHROME_FLAGS --force-dark-mode"
 
 # Construire l'URL complète
+# IMPORTANT: Aller d'abord sur la page d'accueil pour déclencher l'OAuth
 FULL_URL="${HA_URL}"
+TARGET_DASHBOARD=""
 if [ -n "$HA_DASHBOARD" ]; then
-    FULL_URL="${HA_URL}/${HA_DASHBOARD}"
+    TARGET_DASHBOARD="${HA_URL}/${HA_DASHBOARD}"
 fi
 
 bashio::log.info "Launching Chromium to: $FULL_URL"
+[ -n "$TARGET_DASHBOARD" ] && bashio::log.info "Will navigate to dashboard: $TARGET_DASHBOARD after login"
 bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DPI)"
 bashio::log.info "Auto-login: $([ "$AUTO_LOGIN" = true ] && echo "ENABLED" || echo "DISABLED")"
 [ "$DEBUG_MODE" = true ] && bashio::log.info "Launch flags: $CHROME_FLAGS"
@@ -528,6 +442,81 @@ bashio::log.info "Auto-login: $([ "$AUTO_LOGIN" = true ] && echo "ENABLED" || ec
 chromium $CHROME_FLAGS "$FULL_URL" > /tmp/chromium.log 2>&1 &
 CHROME_PID=$!
 bashio::log.info "Chromium launched (PID: $CHROME_PID)"
+
+# Si auto-login activé, utiliser xdotool
+if [ "$AUTO_LOGIN" = true ]; then
+    (
+        # Attendre que la page soit chargée et redirigée vers /auth/authorize
+        TOTAL_WAIT=$((LOGIN_DELAY + 3))
+        bashio::log.info "Waiting ${TOTAL_WAIT}s for OAuth redirect and login page..."
+        sleep $TOTAL_WAIT
+        
+        # Trouver la fenêtre Chromium
+        for attempt in {1..10}; do
+            WINDOW_ID=$(xdotool search --class chromium 2>/dev/null | head -1)
+            [ -n "$WINDOW_ID" ] && break
+            bashio::log.info "Attempt $attempt: Waiting for Chromium window..."
+            sleep 1
+        done
+        
+        if [ -z "$WINDOW_ID" ]; then
+            bashio::log.error "Could not find Chromium window for auto-login"
+            exit 0
+        fi
+        
+        bashio::log.info "Found Chromium window: $WINDOW_ID"
+        
+        # Activer la fenêtre
+        xdotool windowactivate --sync "$WINDOW_ID"
+        sleep 2
+        
+        bashio::log.info "Starting auto-login sequence..."
+        
+        # Cliquer vers le haut de l'écran où se trouve généralement le formulaire
+        xdotool mousemove --window "$WINDOW_ID" 960 350
+        xdotool click 1
+        sleep 1
+        
+        # Cliquer spécifiquement sur la zone du champ username (approximativement)
+        xdotool mousemove --window "$WINDOW_ID" 960 420
+        xdotool click 1
+        sleep 1
+        
+        # Taper le username
+        bashio::log.info "Typing username: $HA_USERNAME"
+        xdotool type --clearmodifiers --delay 120 "$HA_USERNAME"
+        sleep 1
+        
+        # Tab vers le champ password
+        xdotool key Tab
+        sleep 1
+        
+        # Taper le password
+        bashio::log.info "Typing password..."
+        xdotool type --clearmodifiers --delay 120 "$HA_PASSWORD"
+        sleep 1
+        
+        # Soumettre le formulaire avec Enter
+        bashio::log.info "Submitting login form..."
+        xdotool key Return
+        sleep 3
+        
+        # Si un dashboard spécifique est configuré, naviguer vers lui après login
+        if [ -n "$TARGET_DASHBOARD" ]; then
+            bashio::log.info "Navigating to dashboard: $TARGET_DASHBOARD"
+            sleep 2
+            # Utiliser Ctrl+L pour aller dans la barre d'adresse
+            xdotool key ctrl+l
+            sleep 1
+            xdotool type --delay 50 "$TARGET_DASHBOARD"
+            sleep 1
+            xdotool key Return
+        fi
+        
+        bashio::log.info "✓ Auto-login sequence completed"
+        
+    ) &
+fi
 
 # Afficher les logs Chromium en mode debug
 if [ "$DEBUG_MODE" = true ]; then
