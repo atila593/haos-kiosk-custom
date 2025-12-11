@@ -1,11 +1,7 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-RUN apk update && apk add --no-cache \
-    xorg-server xf86-video-intel xf86-video-fbdev xf86-video-modesetting \
-    xf86-input-libinput xinput dbus ttf-freefont openbox xset xrandr setxkbmap \
-    xkeyboard-config chromium py3-pip python3 bash patch eudev util-linux procps \
-    tini
+RUN apk update && apk add --no-cache xorg-server xf86-video-intel xf86-video-fbdev xf86-video-modesetting xf86-input-libinput xinput dbus ttf-freefont openbox xset xrandr setxkbmap xkeyboard-config chromium py3-pip python3 bash patch eudev util-linux procps tini
     
 RUN rm -rf /usr/share/luakit || true \
 
