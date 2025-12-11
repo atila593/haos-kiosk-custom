@@ -337,32 +337,64 @@ bashio::log.info "Chromium launched (PID: $CHROME_PID)"
 
 sleep "$LOGIN_DELAY"
 (
-    # Attendre 5 secondes après le délai initial, pour être doublement sûr
-    sleep 5
+    # Attendre plus longtemps pour être sûr que la page est chargée
+    sleep 10
     
-    # Recherche par titre de fenêtre (le plus fiable)
-    WINDOW_ID=$(xdotool search --onlyvisible --name ".*Home Assistant.*" 2>/dev/null | head -1)
+    bashio::log.info "Starting auto-login process..."
+    
+    # Plusieurs tentatives de recherche de fenêtre
+    for i in {1..5}; do
+        WINDOW_ID=$(xdotool search --name "Home Assistant" 2>/dev/null | head -1)
+        [ -n "$WINDOW_ID" ] && break
+        bashio::log.info "Attempt $i: Window not found, retrying..."
+        sleep 2
+    done
+    
+    if [ -z "$WINDOW_ID" ]; then
+        # Si pas trouvé par nom, chercher n'importe quelle fenêtre Chromium
+        WINDOW_ID=$(xdotool search --class "chromium" 2>/dev/null | head -1)
+    fi
     
     if [ -n "$WINDOW_ID" ]; then
-        bashio::log.info "Auto-login: Found Home Assistant window $WINDOW_ID"
+        bashio::log.info "Auto-login: Found window $WINDOW_ID"
+        
+        # Activer et maximiser la fenêtre
         xdotool windowactivate --sync "$WINDOW_ID"
-        
-        # Forcer un clic près du centre (1000, 500) pour activer le formulaire
-        bashio::log.info "Forcing click to focus login form..."
-        xdotool mousemove --window "$WINDOW_ID" 1000 500 click 1
-        
         sleep 1
+        
+        # Cliquer au centre de l'écran pour activer le formulaire
+        xdotool mousemove --window "$WINDOW_ID" 960 540
+        xdotool click 1
+        sleep 2
+        
+        # Essayer de trouver et cliquer sur le champ username
+        bashio::log.info "Clicking on username field..."
+        xdotool mousemove --window "$WINDOW_ID" 960 450
+        xdotool click 1
+        sleep 1
+        
+        # Taper le username
         bashio::log.info "Typing username..."
-        xdotool type --delay 100 "$HA_USERNAME"
+        xdotool type --clearmodifiers --delay 150 "$HA_USERNAME"
+        sleep 1
+        
+        # Passer au champ password
         xdotool key Tab
-        sleep 0.5
+        sleep 1
+        
+        # Taper le password
         bashio::log.info "Typing password..."
-        xdotool type --delay 100 "$HA_PASSWORD"
-        sleep 0.5
+        xdotool type --clearmodifiers --delay 150 "$HA_PASSWORD"
+        sleep 1
+        
+        # Soumettre le formulaire
+        bashio::log.info "Submitting login form..."
         xdotool key Return
-        bashio::log.info "✓ Auto-login completed"
+        
+        bashio::log.info "✓ Auto-login sequence completed"
     else
-        bashio::log.warning "Home Assistant window not found for auto-login (Check 'login_delay' in options)"
+        bashio::log.warning "No suitable window found for auto-login"
+        bashio::log.warning "Try increasing LOGIN_DELAY in addon configuration"
     fi
 ) &
 
