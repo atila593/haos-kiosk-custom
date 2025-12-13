@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
-VERSION="1.1.1-chromium-autologin"
+VERSION="1.1.1-chromium-autologin-fixed"
 
 echo "."
 printf '%*s\n' 80 '' | tr ' ' '#'
@@ -287,9 +287,23 @@ else
     bashio::log.error "Could not determine screen size for output $OUTPUT_NAME"
 fi
 
-#### Onboard keyboard
+#### Onboard keyboard configuration
 if [[ "$ONSCREEN_KEYBOARD" = true && -n "$SCREEN_WIDTH" && -n "$SCREEN_HEIGHT" ]]; then
-    bashio::log.info "Starting Onboard onscreen keyboard"
+    bashio::log.info "Configuring Onboard onscreen keyboard..."
+    
+    # Configurer Onboard pour s'afficher automatiquement dans les champs de texte
+    dconf write /org/onboard/auto-show/enabled true
+    dconf write /org/onboard/auto-show/hide-on-key-press false
+    dconf write /org/onboard/window/docking-enabled true
+    dconf write /org/onboard/window/docking-edge "'bottom'"
+    
+    # Charger la configuration sauvegardée si elle existe
+    if [ -f "$ONBOARD_CONFIG_FILE" ]; then
+        bashio::log.info "Loading saved Onboard configuration..."
+        dconf load /org/onboard/ < "$ONBOARD_CONFIG_FILE" 2>/dev/null || true
+    fi
+    
+    bashio::log.info "Starting Onboard onscreen keyboard..."
     onboard &
     python3 /toggle_keyboard.py "$DARK_MODE" &
 fi
@@ -399,6 +413,35 @@ JSEOF
 fi
 
 ################################################################################
+#### CRÉER CSS POUR FORCER L'AFFICHAGE DU MENU HAMBURGER
+################################################################################
+
+bashio::log.info "Creating CSS to force hamburger menu visibility..."
+cat > /tmp/force-sidebar.css << 'CSSEOF'
+/* Forcer l'affichage du menu hamburger */
+.header ha-menu-button,
+.header mwc-icon-button[slot="navigationIcon"],
+.toolbar ha-menu-button,
+ha-sidebar ha-menu-button {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+/* S'assurer que la sidebar peut être ouverte */
+.mdc-drawer,
+ha-sidebar {
+    display: block !important;
+}
+
+/* Forcer le z-index pour être sûr que le bouton est cliquable */
+.header, .toolbar {
+    z-index: 1000 !important;
+}
+CSSEOF
+
+################################################################################
 #### CHROMIUM LAUNCH
 ################################################################################
 
@@ -408,18 +451,19 @@ ZOOM_DPI=$(awk "BEGIN {printf \"%.2f\", $ZOOM_LEVEL / 100}")
 # Créer le profil utilisateur Chromium
 mkdir -p /tmp/chromium-profile
 
-# Construire les flags Chromium
+# Construire les flags Chromium - CHANGEMENT IMPORTANT: --start-fullscreen au lieu de --kiosk
 CHROME_FLAGS="\
     --no-sandbox \
     --disable-gpu \
     --disable-software-rasterizer \
-    --kiosk \
+    --start-fullscreen \
     --disable-infobars \
     --force-device-scale-factor=$ZOOM_DPI \
     --disable-features=TranslateUI,ImprovedEmailValidation \
     --window-size=$SCREEN_WIDTH,$SCREEN_HEIGHT \
     --no-first-run \
-    --user-data-dir=/tmp/chromium-profile"
+    --user-data-dir=/tmp/chromium-profile \
+    --user-stylesheet=/tmp/force-sidebar.css"
 
 # Dark mode
 [ "$DARK_MODE" = true ] && CHROME_FLAGS="$CHROME_FLAGS --force-dark-mode"
@@ -429,19 +473,16 @@ FULL_URL="${HA_URL}"
 if [ -n "$HA_DASHBOARD" ]; then
     FULL_URL="${HA_URL}/${HA_DASHBOARD}"
     
-    # Ajouter hide_sidebar si configuré
+    # NE PAS ajouter hide_sidebar dans l'URL si on veut voir le hamburger
+    # On laisse le CSS forcer l'affichage à la place
     if [ "$HA_SIDEBAR" = "none" ]; then
-        if [[ "$FULL_URL" == *"?"* ]]; then
-            FULL_URL="${FULL_URL}&hide_sidebar"
-        else
-            FULL_URL="${FULL_URL}?hide_sidebar"
-        fi
-        bashio::log.info "Sidebar will be hidden via URL parameter"
+        bashio::log.info "Sidebar configured as 'none' but will be accessible via hamburger menu"
     fi
 fi
 
 bashio::log.info "Launching Chromium to: $FULL_URL"
 bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DPI)"
+bashio::log.info "Mode: Fullscreen (hamburger menu visible)"
 bashio::log.info "Auto-login: $([ "$AUTO_LOGIN" = true ] && echo "ENABLED" || echo "DISABLED (using trusted networks)")"
 [ "$DEBUG_MODE" = true ] && bashio::log.info "Launch flags: $CHROME_FLAGS"
 
