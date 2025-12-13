@@ -287,25 +287,10 @@ else
     bashio::log.error "Could not determine screen size for output $OUTPUT_NAME"
 fi
 
-#### Onboard keyboard configuration
-if [[ "$ONSCREEN_KEYBOARD" = true && -n "$SCREEN_WIDTH" && -n "$SCREEN_HEIGHT" ]]; then
-    bashio::log.info "Configuring Onboard onscreen keyboard..."
-    
-    # Configurer Onboard pour s'afficher automatiquement dans les champs de texte
-    dconf write /org/onboard/auto-show/enabled true
-    dconf write /org/onboard/auto-show/hide-on-key-press false
-    dconf write /org/onboard/window/docking-enabled true
-    dconf write /org/onboard/window/docking-edge "'bottom'"
-    
-    # Charger la configuration sauvegardée si elle existe
-    if [ -f "$ONBOARD_CONFIG_FILE" ]; then
-        bashio::log.info "Loading saved Onboard configuration..."
-        dconf load /org/onboard/ < "$ONBOARD_CONFIG_FILE" 2>/dev/null || true
-    fi
-    
-    bashio::log.info "Starting Onboard onscreen keyboard..."
-    onboard &
-    python3 /toggle_keyboard.py "$DARK_MODE" &
+#### Onboard keyboard - DISABLED (not installed in this container)
+if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
+    bashio::log.warning "Onboard keyboard requested but not available in this container version"
+    bashio::log.warning "Virtual keyboard functionality is not supported"
 fi
 
 #### Start REST server
