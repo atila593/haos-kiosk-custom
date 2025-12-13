@@ -298,8 +298,48 @@ bashio::log.info "Starting HAOSKiosk REST server..."
 python3 /rest_server.py &
 
 ################################################################################
-#### CRÉER LE USERSCRIPT POUR AUTO-LOGIN
+#### CRÉER UN SCRIPT JS POUR FERMER LA SIDEBAR AU DÉMARRAGE
 ################################################################################
+
+if [ "$HA_SIDEBAR" = "none" ]; then
+    bashio::log.info "Creating sidebar auto-close script..."
+    
+    cat > /tmp/close-sidebar.js << 'JSEOF'
+(function() {
+    console.log('[HAOSKiosk] Auto-close sidebar script loaded');
+    
+    function closeSidebar() {
+        // Attendre que Home Assistant soit chargé
+        const checkInterval = setInterval(() => {
+            const homeAssistant = document.querySelector('home-assistant');
+            if (homeAssistant && homeAssistant.shadowRoot) {
+                const drawer = homeAssistant.shadowRoot.querySelector('ha-drawer');
+                if (drawer && drawer.shadowRoot) {
+                    const mdcDrawer = drawer.shadowRoot.querySelector('mwc-drawer');
+                    if (mdcDrawer && mdcDrawer.open) {
+                        console.log('[HAOSKiosk] Closing sidebar...');
+                        mdcDrawer.open = false;
+                        clearInterval(checkInterval);
+                    }
+                }
+            }
+        }, 500);
+        
+        // Arrêter après 30 secondes max
+        setTimeout(() => clearInterval(checkInterval), 30000);
+    }
+    
+    // Lancer après le chargement de la page
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', closeSidebar);
+    } else {
+        closeSidebar();
+    }
+})();
+JSEOF
+    
+    bashio::log.info "Sidebar auto-close script created"
+fi
 
 if [ "$AUTO_LOGIN" = true ]; then
     bashio::log.info "Setting up auto-login userscript..."
@@ -398,33 +438,11 @@ JSEOF
 fi
 
 ################################################################################
-#### CRÉER CSS POUR FORCER L'AFFICHAGE DU MENU HAMBURGER
+#### CRÉER CSS POUR FORCER L'AFFICHAGE DU MENU HAMBURGER (SUPPRIMÉ - NON NÉCESSAIRE)
 ################################################################################
 
-bashio::log.info "Creating CSS to force hamburger menu visibility..."
-cat > /tmp/force-sidebar.css << 'CSSEOF'
-/* Forcer l'affichage du menu hamburger */
-.header ha-menu-button,
-.header mwc-icon-button[slot="navigationIcon"],
-.toolbar ha-menu-button,
-ha-sidebar ha-menu-button {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-}
-
-/* S'assurer que la sidebar peut être ouverte */
-.mdc-drawer,
-ha-sidebar {
-    display: block !important;
-}
-
-/* Forcer le z-index pour être sûr que le bouton est cliquable */
-.header, .toolbar {
-    z-index: 1000 !important;
-}
-CSSEOF
+# Le CSS n'est plus nécessaire car le menu hamburger est visible par défaut
+# en mode --start-fullscreen (au lieu de --kiosk)
 
 ################################################################################
 #### CHROMIUM LAUNCH
