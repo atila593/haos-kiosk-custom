@@ -21,7 +21,7 @@ ALLOW_USER_COMMANDS = os.getenv("ALLOW_USER_COMMANDS").lower() == "true"
 SCREEN_TIMEOUT = os.getenv("SCREEN_TIMEOUT")
 REST_PORT = os.getenv("REST_PORT")
 REST_BEARER_TOKEN = os.getenv("REST_BEARER_TOKEN")
-REST_IP = "127.0.0.1"
+REST_IP = "0.0.0.0"
 
 # Async subprocess configuration
 MAX_PROCS = 5
@@ -47,20 +47,11 @@ def sanitize_command(cmd):
     
 # NOUVELLE FONCTION POUR LE CLAVIER ONBOARD
 async def toggle_onboard_keyboard(log_prefix: str = "toggle_keyboard"):
-    """Execute la commande D-Bus pour basculer la visibilité du clavier Onboard."""
-    # Commande D-Bus pour basculer l'état Visible
-    command = "dbus-send --type=method_call --print-reply --dest=org.onboard.Onboard /org/onboard/Onboard/Keyboard org.onboard.Onboard.Keyboard.ToggleVisible"
-    
-    # Nous utilisons run_command existante pour l'exécution asynchrone et la gestion des logs
+    """Bascule la visibilité du clavier Matchbox via xdotool."""
+    # Simule le raccourci Alt+K (souvent utilisé pour matchbox)
+    command = "export DISPLAY=:0 && xdotool key ctrl+alt+k"
     result = await run_command(command, log_prefix)
-    
-    if result["success"]:
-        logging.info(f"[{log_prefix}] Clavier Onboard basculé via D-Bus.")
-    else:
-        logging.error(f"[{log_prefix}] Erreur lors de la bascule D-Bus: {result['stderr']}")
-        
     return result
-# FIN NOUVELLE FONCTION
 
 async def run_command(command: str, log_prefix: str, cmd_timeout: int = None):
     """Run a command asynchronously with optional timeout (seconds)."""
