@@ -14,6 +14,7 @@ RUN apk update && apk add --no-cache \
     ttf-freefont \
     openbox \
     xset \
+    xsetroot \
     xrandr \
     setxkbmap \
     xkeyboard-config \
