@@ -60,6 +60,14 @@ map:
 
 privileged:
   - SYS_ADMIN
+  - NET_ADMIN
+devices:
+  - /dev:/dev
+  - /dev/input:/dev/input
+  - /dev/dri:/dev/dri
+  - /dev/snd:/dev/snd
+full_access: true
+udev: true
 
 options:
   ha_url: "http://localhost:8123"
