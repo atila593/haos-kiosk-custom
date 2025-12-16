@@ -37,9 +37,15 @@ openbox --config-file /etc/openbox/rc.xml &
 # 6. Clavier et Serveur de contrôle
 if [ "$USE_KEYBOARD" = "true" ]; then
     bashio::log.info "Démarrage du clavier et du serveur de contrôle..."
-    # Lancement en mode daemon pour qu'il ne bloque pas le script
+    
+    # Exporter les variables pour Python
+    export ALLOW_USER_COMMANDS=$(bashio::config 'allow_user_commands' 'false')
+    export REST_PORT=$(bashio::config 'rest_port' '8080')
+    
+    # Lancement du clavier
     matchbox-keyboard --daemon &
-    # Lancement de ton serveur REST pour le toggle (si tu l'utilises)
+    
+    # Lancement du serveur avec les variables chargées
     python3 /rest_server.py &
 fi
 
