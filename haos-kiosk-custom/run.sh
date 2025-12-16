@@ -72,44 +72,43 @@ OUTPUT_NAME=$(xrandr --query | grep " connected" | head -n "$OUTPUT_NUMBER" | ta
 xrandr --output "$OUTPUT_NAME" --primary --auto --rotate "${ROTATE_DISPLAY}"
 setxkbmap "$KEYBOARD_LAYOUT"
 
-#### 3. TACTILE (DÉTECTION AUTOMATIQUE AMÉLIORÉE)
+#### 3. TACTILE (Simplifié pour éviter le BadMatch)
 if [ "$MAP_TOUCH_INPUTS" = true ]; then
-    bashio::log.info "Recherche du périphérique tactile..."
+    bashio::log.info "Mapping touch inputs..."
     sleep 2
-    # On cherche les IDs des périphériques qui sont des esclaves pointeurs (Floating/Master pointer)
-    # et on filtre pour exclure les claviers/boutons
+    # On mappe uniquement les IDs qui acceptent la matrice de transformation
+    # et on ignore les erreurs pour ne pas bloquer le reste
     xinput list --id-only | while read -r id; do
-        props=$(xinput list-props "$id" 2>/dev/null)
-        # Un écran tactile a presque toujours une matrice de transformation et n'est pas un clavier
-        if echo "$props" | grep -q "Coordinate Transformation Matrix" && ! echo "$props" | grep -q "Keyboard"; then
-            bashio::log.info "Périphérique tactile détecté (ID: $id). Mapping vers $OUTPUT_NAME..."
-            xinput map-to-output "$id" "$OUTPUT_NAME" || true
-        fi
+        xinput map-to-output "$id" "$OUTPUT_NAME" 2>/dev/null || true
     done
 fi
 
-#### 4. CLAVIER TACTILE (SANS OPTIONS QUI PLANTENT)
+#### 4. CLAVIER ET COMPORTEMENT DES FENÊTRES
 if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
-    bashio::log.info "Démarrage du clavier Matchbox..."
-    matchbox-keyboard & 
+    bashio::log.info "Configuration du clavier..."
+    # On lance le clavier
+    matchbox-keyboard &
     sleep 3
-    # On place le clavier en bas (30% de l'écran)
+    
+    # On force le clavier à rester TOUJOURS au-dessus (TopMost)
+    # et on le place en bas de l'écran
+    xdotool search --class "matchbox-keyboard" set_window --overrideredirect 1 2>/dev/null || true
     xdotool search --class "matchbox-keyboard" windowmove 0 750 2>/dev/null || true
-    xdotool search --class "matchbox-keyboard" windowsize 100% 25% 2>/dev/null || true
+    xdotool search --class "matchbox-keyboard" windowsize 100% 30% 2>/dev/null || true
 fi
 
-#### 5. SERVICES ET CHROMIUM
+#### 5. CHROMIUM (Mode fenêtre Maximisée plutôt que Kiosk pour laisser le clavier visible)
 python3 /rest_server.py &
 
 ZOOM_DPI=$(awk "BEGIN {printf \"%.2f\", $ZOOM_LEVEL / 100}")
 mkdir -p /tmp/chromium-profile
-CHROME_FLAGS="--no-sandbox --start-fullscreen --disable-infobars --force-device-scale-factor=$ZOOM_DPI --no-first-run --user-data-dir=/tmp/chromium-profile"
 
-FULL_URL="${HA_URL}"
-[ -n "$HA_DASHBOARD" ] && FULL_URL="${HA_URL}/${HA_DASHBOARD}"
+# NOTE: On enlève --start-fullscreen et on met --start-maximized 
+# pour qu'Openbox puisse afficher le clavier par dessus.
+CHROME_FLAGS="--no-sandbox --start-maximized --disable-infobars --force-device-scale-factor=$ZOOM_DPI --no-first-run --user-data-dir=/tmp/chromium-profile --app=$HA_URL"
 
 bashio::log.info "Lancement de Chromium..."
-chromium $CHROME_FLAGS "$FULL_URL" > /tmp/chromium.log 2>&1 &
+chromium $CHROME_FLAGS > /tmp/chromium.log 2>&1 &
 CHROME_PID=$!
 
 wait "$CHROME_PID"
