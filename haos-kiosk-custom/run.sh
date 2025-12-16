@@ -457,6 +457,7 @@ mkdir -p /tmp/chromium-profile
 # Construire les flags Chromium - CHANGEMENT IMPORTANT: --start-fullscreen au lieu de --kiosk
 CHROME_FLAGS="\
     --no-sandbox \
+    --enable-features=WebUIDisableNewBadgeStyle \
     --disable-gpu \
     --disable-software-rasterizer \
     --start-fullscreen \
