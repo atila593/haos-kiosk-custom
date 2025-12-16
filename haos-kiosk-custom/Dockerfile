@@ -29,6 +29,12 @@ RUN apk update && apk add --no-cache \
     matchbox-keyboard \
     libpng
 
+RUN apk add --no-cache ttf-dejavu font-noto
+
+# Créer le dossier de config et copier le fichier
+RUN mkdir -p /etc/openbox
+COPY rc.xml /etc/openbox/rc.xml
+
 # 2. Nettoyer l'ancien navigateur (Luakit)
 RUN rm -rf /usr/share/luakit || true
 
