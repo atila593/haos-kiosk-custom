@@ -1,13 +1,13 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
-VERSION="1.1.6-dock-mode"
+VERSION="1.1.7-touch-emergency-fix"
 
 echo "."
 printf '%*s\n' 80 '' | tr ' ' '#'
 bashio::log.info "######## Starting HAOSKiosk (Chromium Edition) ########"
 bashio::log.info "$(date) [Version: $VERSION]"
 
-#### Clean up on exit
+#### Clean up
 TTY0_DELETED=""
 cleanup() {
     local exit_code=$?
@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup HUP INT QUIT ABRT TERM EXIT
 
 ################################################################################
-#### Configuration
+#### Config
 load_config_var() {
     local VAR_NAME="$1"
     local DEFAULT="${2:-}"
@@ -37,8 +37,9 @@ load_config_var ROTATE_DISPLAY normal
 load_config_var MAP_TOUCH_INPUTS true
 load_config_var KEYBOARD_LAYOUT fr
 load_config_var ONSCREEN_KEYBOARD true
+load_config_var ALLOW_USER_COMMANDS true
 
-#### Hack TTY
+#### TTY Hack pour Xorg
 if [ -e "/dev/tty0" ]; then
     mount -o remount,rw /dev || true
     rm -f /dev/tty0 && TTY0_DELETED=1
@@ -47,13 +48,6 @@ fi
 #### Démarrage Xorg
 rm -rf /tmp/.X*-lock
 mkdir -p /etc/X11
-cat > /etc/X11/xorg.conf << 'EOF'
-Section "Device"
-    Identifier "Card0"
-    Driver "modesetting"
-EndSection
-EOF
-
 Xorg -nocursor </dev/null &
 sleep 5
 export DISPLAY=:0
@@ -67,30 +61,29 @@ OUTPUT_NAME=$(xrandr --query | grep " connected" | head -n "$OUTPUT_NUMBER" | ta
 xrandr --output "$OUTPUT_NAME" --primary --auto --rotate "${ROTATE_DISPLAY}"
 setxkbmap "$KEYBOARD_LAYOUT"
 
-#### 3. TACTILE (SANS ERREUR)
+#### 3. TACTILE (MODE BRUT)
 if [ "$MAP_TOUCH_INPUTS" = true ]; then
-    bashio::log.info "Mapping touch inputs..."
+    bashio::log.info "Mapping touch inputs (BRUTE FORCE)..."
     sleep 2
-    xinput list --id-only | while read -r id; do
+    # On mappe absolument TOUT ce qui ressemble à un pointeur vers l'écran HDMI
+    # Si ça ne marche pas comme ça, c'est que le driver Xorg n'aime pas le mapping
+    for id in $(xinput list --id-only); do
         xinput map-to-output "$id" "$OUTPUT_NAME" 2>/dev/null || true
     done
 fi
 
-#### 4. CLAVIER (MODE DOCK)
+#### 4. CLAVIER (TEST DE VISIBILITÉ MILIEU D'ÉCRAN)
 if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
-    bashio::log.info "Lancement du clavier en mode Dock..."
-    # On lance matchbox
+    bashio::log.info "Lancement du clavier..."
     matchbox-keyboard &
-    sleep 4
-    
-    # On force le type de fenêtre à "DOCK" pour qu'il soit protégé
-    # Et on le place en bas de l'écran (y=780 pour un écran 1080p)
-    xprop -name "matchbox-keyboard" -f _NET_WM_WINDOW_TYPE 32a -set _NET_WM_WINDOW_TYPE _NET_WM_WINDOW_TYPE_DOCK 2>/dev/null || true
-    xdotool search --class "matchbox-keyboard" windowmove 0 780 2>/dev/null || true
-    xdotool search --class "matchbox-keyboard" windowsize 100% 300 2>/dev/null || true
+    sleep 5
+    # On le place au milieu pour être SÛR de le voir
+    xdotool search --class "matchbox-keyboard" windowmove 100 300 2>/dev/null || true
 fi
 
-#### 5. CHROMIUM (MODE APP POUR ÉVITER LE PLEIN ÉCRAN TOTAL)
+#### 5. CHROMIUM (MODE FENÊTRE SIMPLE)
+# On répare le bug du serveur REST
+export ALLOW_USER_COMMANDS="${ALLOW_USER_COMMANDS:-true}"
 python3 /rest_server.py &
 
 ZOOM_DPI=$(awk "BEGIN {printf \"%.2f\", $ZOOM_LEVEL / 100}")
@@ -98,8 +91,8 @@ FULL_URL="${HA_URL}"
 [ -n "$HA_DASHBOARD" ] && FULL_URL="${HA_URL}/${HA_DASHBOARD}"
 
 bashio::log.info "Lancement de Chromium..."
-# --app permet d'avoir le dashboard sans barres d'outils mais laisse le dock visible
-chromium --no-sandbox --start-maximized --user-data-dir=/tmp/chromium-profile --force-device-scale-factor=$ZOOM_DPI --app="$FULL_URL" &
+# Utilisation de --window-size pour ne pas cacher le reste
+chromium --no-sandbox --window-size=1920,1080 --window-position=0,0 --user-data-dir=/tmp/chromium-profile --force-device-scale-factor=$ZOOM_DPI --app="$FULL_URL" &
 CHROME_PID=$!
 
 wait "$CHROME_PID"
