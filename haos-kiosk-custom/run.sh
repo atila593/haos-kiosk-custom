@@ -11,6 +11,17 @@ if [ -e "/dev/tty0" ]; then
     rm -f /dev/tty0 && TTY0_DELETED=1
 fi
 
+# Force la détection du tactile par le pilote evdev
+mkdir -p /usr/share/X11/xorg.conf.d/
+cat > /usr/share/X11/xorg.conf.d/99-touchscreen.conf << 'EOF'
+Section "InputClass"
+    Identifier "touchscreen catchall"
+    MatchIsTouchscreen "on"
+    MatchDevicePath "/dev/input/event*"
+    Driver "evdev"
+EndSection
+EOF
+
 # 2. XORG
 Xorg -nocursor </dev/null &
 sleep 5
