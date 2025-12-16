@@ -298,7 +298,7 @@ if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
 
     # Lancement du clavier Matchbox
     # -o orientation : permet au clavier de s'adapter si l'écran est pivoté
-    matchbox-keyboard -o orientation &
+    matchbox-keyboard &
     
     bashio::log.info "✓ Matchbox Virtual Keyboard is now active."
 else
