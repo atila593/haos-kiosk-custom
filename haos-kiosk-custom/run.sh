@@ -1,77 +1,73 @@
 #!/usr/bin/with-contenv bashio
 
-# 1. Récupération des configurations
-HA_URL=$(bashio::config 'ha_url')
-HA_DASHBOARD=$(bashio::config 'ha_dashboard')
-ZOOM_LEVEL=$(bashio::config 'zoom_level')
-CURSOR_TIMEOUT=$(bashio::config 'cursor_timeout')
+# 1. Chargement des options (config.json)
+HA_URL=$(bashio::config 'ha_url' 'http://homeassistant.local:8123')
+HA_DASHBOARD=$(bashio::config 'ha_dashboard' '')
+ZOOM_LEVEL=$(bashio::config 'zoom_level' '100')
 
-# Construction de l'URL
-if [ -z "$HA_DASHBOARD" ]; then
-    FINAL_URL="$HA_URL"
-else
-    # Nettoyage pour éviter les doubles slashes
-    HA_URL_STRIPPED=$(echo "$HA_URL" | sed 's:/*$::')
-    DASHBOARD_STRIPPED=$(echo "$HA_DASHBOARD" | sed 's:^/*::')
-    FINAL_URL="${HA_URL_STRIPPED}/${DASHBOARD_STRIPPED}"
-fi
+# Construction de l'URL finale
+FINAL_URL="${HA_URL}/${HA_DASHBOARD}"
+FINAL_URL=$(echo "$FINAL_URL" | sed 's|//*|/|g' | sed 's|http:/|http://|g')
 
-# 2. Préparation du matériel (Mode Privilégié requis)
-bashio::log.info "Initialisation du système graphique et tactile..."
+bashio::log.info "Démarrage du Kiosk..."
+bashio::log.info "URL cible : $FINAL_URL"
 
-# Hack TTY pour éviter les conflits d'affichage
-if [ -e "/dev/tty0" ]; then
-    mount -o remount,rw /dev || true
-    rm -f /dev/tty0
-fi
+# 2. Nettoyage des fichiers temporaires
+rm -f /tmp/.X0-lock || true
 
-# On s'assure que les entrées sont accessibles
-chmod -R 777 /dev/input || true
+# 3. Lancement de Xorg en arrière-plan
+# On redirige les erreurs xkbcomp vers /dev/null pour nettoyer tes logs
+Xorg -nocursor :0 vt1 > /dev/null 2>&1 &
+X_PID=$!
 
-# 3. Lancement du serveur X
-# On lance Xorg en arrière-plan
-Xorg -nocursor </dev/null &
-sleep 4
+# Attendre que X11 soit prêt
+MAX_RETRIES=10
+COUNT=0
+while ! xset -q > /dev/null 2>&1; do
+    sleep 1
+    COUNT=$((COUNT+1))
+    if [ $COUNT -ge $MAX_RETRIES ]; then
+        bashio::log.error "Xorg n'a pas démarré à temps."
+        exit 1
+    fi
+done
+
 export DISPLAY=:0
 
-# 4. Configuration de l'affichage
-# On désactive la mise en veille et l'économiseur d'écran
+# 4. Configuration de l'écran (Désactive la veille)
 xset s off
 xset -dpms
 xset s noblank
 
-# On récupère l'ID du tactile dynamiquement (ton fameux Weida id=9)
-TOUCH_ID=$(xinput list --id-only "Weida Hi-Tech CoolTouchR System" 2>/dev/null)
-if [ ! -z "$TOUCH_ID" ]; then
-    bashio::log.info "Tactile Weida détecté (ID: $TOUCH_ID). Mappage sur l'écran..."
-    # On mappe le tactile sur la première sortie écran trouvée
-    SCREEN_NAME=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
-    xinput map-to-output "$TOUCH_ID" "$SCREEN_NAME" || true
+# 5. Gestion du Tactile (Auto-détection du Weida)
+TOUCH_NAME="Weida Hi-Tech CoolTouchR System"
+if xinput list --name-only | grep -q "$TOUCH_NAME"; then
+    bashio::log.info "Tactile détecté et configuré."
+    # On mappe le tactile à l'écran principal
+    MAIN_SCREEN=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
+    xinput map-to-output "$TOUCH_NAME" "$MAIN_SCREEN" || true
 fi
 
-# 5. Lancement des services UI
+# 6. Gestionnaire de fenêtres (Openbox)
 openbox &
-if bashio::config.true 'onscreen_keyboard'; then
-    matchbox-keyboard &
-fi
 
-# 6. Lancement de Chromium
-bashio::log.info "Lancement du Kiosk à l'adresse : $FINAL_URL"
-
-# Calcul du facteur de zoom pour Chromium
-# Chromium utilise un facteur où 100% = 1.0
+# 7. Lancement de Chromium
+# --no-first-run : évite les popups de bienvenue
+# --force-device-scale-factor : gère le zoom
 CHROME_ZOOM=$(awk "BEGIN {print $ZOOM_LEVEL/100}")
+
+bashio::log.info "Lancement de Chromium (Zoom: $CHROME_ZOOM)..."
 
 chromium \
   --no-sandbox \
   --kiosk \
-  --start-fullscreen \
   --no-first-run \
+  --start-fullscreen \
   --disable-gpu \
+  --disable-software-rasterizer \
   --disable-dev-shm-usage \
-  --disable-session-crashed-bubble \
   --disable-infobars \
+  --disable-session-crashed-bubble \
   --force-device-scale-factor="$CHROME_ZOOM" \
   --touch-events=enabled \
-  --autoplay-policy=no-user-gesture-required \
   "$FINAL_URL"
