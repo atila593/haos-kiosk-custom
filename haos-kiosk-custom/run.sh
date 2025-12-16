@@ -31,23 +31,20 @@ sleep 3
 # On le déplace au milieu de l'écran pour être sûr de le voir
 xdotool search --class "matchbox-keyboard" windowmove 100 400 2>/dev/null || true
 
-# 5. CHROMIUM (MODE SECURITE MAXIMALE)
-# On désactive le GPU pour éviter les freeze du tactile
-bashio::log.info "Lancement de Chromium..."
-chromium \
-  --no-sandbox \
+# 5. CHROMIUM (MODE STABILITÉ MAXIMALE)
+bashio::log.info "Lancement de Chromium en mode Software Rendering..."
+
+# Ces drapeaux forcent Chromium à ne PAS toucher au GPU (évite les freeze)
+CHROME_STABILITY_FLAGS="--no-sandbox \
   --disable-gpu \
+  --disable-software-rasterizer \
+  --disable-dev-shm-usage \
+  --ignore-gpu-blocklist \
+  --disable-accelerated-2d-canvas \
+  --disable-gpu-rasterization"
+
+chromium $CHROME_STABILITY_FLAGS \
   --start-fullscreen \
   --no-first-run \
   --user-data-dir=/tmp/chromium-profile \
   "http://192.168.1.142:8123" &
-
-# On recrée le tty0 si on sort pour ne pas casser HAOS
-cleanup() {
-    jobs -p | xargs -r kill 2>/dev/null || true
-    [ -n "$TTY0_DELETED" ] && mknod -m 620 /dev/tty0 c 4 0
-    exit 0
-}
-trap cleanup HUP INT QUIT ABRT TERM EXIT
-
-wait
