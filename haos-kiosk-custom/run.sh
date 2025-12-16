@@ -1,39 +1,47 @@
 #!/usr/bin/with-contenv bashio
-# shellcheck shell=bash
 
-bashio::log.info "######## PHASE DE DÉTECTION TACTILE ########"
-
-# 1. HACK TTY0 (Indispensable)
+# --- HACK PERMISSIONS ---
 if [ -e "/dev/tty0" ]; then
     mount -o remount,rw /dev || true
     rm -f /dev/tty0
 fi
 
-# 2. XORG
+# Démarrage de UDEV (crucial pour peupler /dev/input)
+/sbin/udevd --daemon || true
+udevadm trigger || true
+
+# Forcer les droits sur les ports USB/Entrées
+chmod -R 777 /dev/input || true
+
+# --- CONFIG XORG TACTILE ---
+mkdir -p /usr/share/X11/xorg.conf.d/
+cat > /usr/share/X11/xorg.conf.d/99-touchscreen.conf << 'EOF'
+Section "InputClass"
+    Identifier "touchscreen catchall"
+    MatchIsTouchscreen "on"
+    MatchDevicePath "/dev/input/event*"
+    Driver "evdev"
+EndSection
+EOF
+
+# --- DEMARRAGE ---
 Xorg -nocursor </dev/null &
 sleep 5
 export DISPLAY=:0
 
-# 3. DIAGNOSTIC MATÉRIEL (Regarde bien les logs après avoir mis ça)
-bashio::log.info "Liste des périphériques détectés :"
-xinput list || bashio::log.error "Impossible de lister les périphériques !"
+# Diagnostic : On vérifie si udev a fait son travail
+bashio::log.info "Vérification des périphériques d'entrée :"
+xinput list
 
-# 4. OPENBOX & CLAVIER
 openbox &
-sleep 2
 matchbox-keyboard &
 sleep 3
-# On place le clavier bien en évidence
-xdotool search --class "matchbox-keyboard" windowmove 0 300 2>/dev/null || true
 
-# 5. CHROMIUM (MODE STABLE)
-bashio::log.info "Lancement de Chromium..."
+# Chromium avec les drapeaux de stabilité
 chromium \
   --no-sandbox \
   --disable-gpu \
-  --disable-software-rasterizer \
   --disable-dev-shm-usage \
   --start-fullscreen \
   --no-first-run \
-  --user-data-dir=/tmp/chromium-profile \
   "http://192.168.1.142:8123"
