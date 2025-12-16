@@ -296,11 +296,11 @@ if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
         dconf load /org/onboard/ < "$ONBOARD_CONFIG_FILE" 2>/dev/null || true
     fi
 
-    # Lancement du clavier Onboard en arrière-plan
-    onboard &
+    # Lancement du clavier Onboard en arrière-plan (LIGNE MODIFIÉE CI-DESSOUS)
+    # Lancement avec options pour forcer la visibilité et la compatibilité tactile
+    onboard --desktop=0 --enable-wacom-pen --toggle-visible &
     
-    # Lancement du script python qui sert de "bouton invisible" pour faire apparaître/disparaître Onboard.
-    # On le positionne en haut à droite (0,0) avec une taille de 1x1.
+    # Lancement du script python qui sert de "bouton invisible"
     python3 /toggle_keyboard.py &
     
     bashio::log.info "✓ Onboard Virtual Keyboard is now active (controlled by clicking the top-left corner)."
