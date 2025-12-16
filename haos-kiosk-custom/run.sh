@@ -69,4 +69,10 @@ chromium \
   --force-device-scale-factor="$CHROME_ZOOM" \
   --touch-events=enabled \
   --autoplay-policy=no-user-gesture-required \
-  "$FINAL_URL"
+  "$FINAL_URL" &
+
+# IMPORTANT : Cette boucle empêche l'addon de s'arrêter
+bashio::log.info "Kiosk prêt et stable."
+while true; do
+    sleep 60
+done
