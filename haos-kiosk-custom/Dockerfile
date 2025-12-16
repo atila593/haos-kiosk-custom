@@ -1,9 +1,8 @@
-# 1. Image de base Home Assistant (gérée par le build system)
+# 1. Image de base
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# 2. Installation des paquets système (Alpine Linux)
-# On regroupe tout pour optimiser les couches Docker
+# 2. Installation des paquets système ET Python (Alpine Linux)
 RUN apk update && apk add --no-cache \
     xorg-server \
     xf86-video-intel \
@@ -22,6 +21,7 @@ RUN apk update && apk add --no-cache \
     chromium \
     python3 \
     py3-pip \
+    py3-aiohttp \
     bash \
     patch \
     eudev \
@@ -33,25 +33,16 @@ RUN apk update && apk add --no-cache \
     xdotool \
     && rm -rf /tmp/* /var/cache/apk/*
 
-# 3. Installation des dépendances Python pour ton serveur REST
-# On le fait avant de copier le code pour profiter du cache Docker
-RUN pip3 install --no-cache-dir aiohttp
-
-# 4. Définition du répertoire de travail
+# 3. Répertoire de travail
 WORKDIR /app
 
-# 5. Copie des fichiers de ton addon
-# Assure-toi que ces fichiers sont dans le même dossier que ton Dockerfile
+# 4. Copie des fichiers
 COPY run.sh /app/
 COPY rest_server.py /app/
-# Si tu as d'autres scripts (ex: toggle_keyboard.py), décommente la ligne suivante :
-# COPY *.py /app/
 
-# 6. Permissions d'exécution sur le script de démarrage
+# 5. Permissions
 RUN chmod a+x /app/run.sh
 
-# 7. Utilisation de Tini pour gérer les processus correctement
+# 6. Lancement
 ENTRYPOINT ["/sbin/tini", "--"]
-
-# 8. Commande de lancement
 CMD ["/app/run.sh"]
