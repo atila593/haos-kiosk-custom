@@ -497,6 +497,10 @@ if [ -n "$HA_DASHBOARD" ]; then
     fi
 fi
 
+# Effacer la console et mettre un fond noir
+clear > /dev/tty0
+xsetroot -solid black
+
 bashio::log.info "Launching Chromium to: $FULL_URL"
 bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DPI)"
 bashio::log.info "Mode: Fullscreen (hamburger menu visible)"
