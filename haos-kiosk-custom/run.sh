@@ -1,5 +1,14 @@
 #!/usr/bin/with-contenv bashio
 
+# On redémarre udev à l'intérieur pour scanner le matériel
+bashio::log.info "Initialisation du matériel USB/Tactile..."
+udevd --daemon || true
+udevadm trigger || true
+sleep 2
+
+# On donne les droits réels aux fichiers créés
+chmod -R 777 /dev/input || true
+
 # --- HACK PERMISSIONS ---
 if [ -e "/dev/tty0" ]; then
     mount -o remount,rw /dev || true
