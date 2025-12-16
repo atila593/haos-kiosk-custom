@@ -1,13 +1,13 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
-VERSION="1.1.4-final-fix"
+VERSION="1.1.5-touch-auto-detect"
 
 echo "."
 printf '%*s\n' 80 '' | tr ' ' '#'
 bashio::log.info "######## Starting HAOSKiosk (Chromium Edition) ########"
 bashio::log.info "$(date) [Version: $VERSION]"
 
-#### Clean up on exit
+#### Nettoyage à la sortie
 TTY0_DELETED=""
 cleanup() {
     local exit_code=$?
@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup HUP INT QUIT ABRT TERM EXIT
 
 ################################################################################
-#### Chargement Configuration
+#### Configuration
 load_config_var() {
     local VAR_NAME="$1"
     local DEFAULT="${2:-}"
@@ -42,9 +42,8 @@ load_config_var ONSCREEN_KEYBOARD true
 load_config_var REST_PORT 8080
 load_config_var ALLOW_USER_COMMANDS true
 
-#### CRITICAL HACK: Delete /dev/tty0 so X can start
+#### Hack TTY pour HAOS
 if [ -e "/dev/tty0" ]; then
-    bashio::log.info "Applying TTY0 hack..."
     mount -o remount,rw /dev || true
     rm -f /dev/tty0 && TTY0_DELETED=1
 fi
@@ -63,35 +62,40 @@ Xorg -nocursor </dev/null &
 sleep 5
 export DISPLAY=:0
 
-#### 1. LANCER LE GESTIONNAIRE DE FENÊTRES
-bashio::log.info "Starting Openbox..."
+#### 1. GESTIONNAIRE DE FENÊTRES
+bashio::log.info "Démarrage Openbox..."
 openbox &
 sleep 2
 
 #### 2. CONFIGURATION ÉCRAN
-# Détection automatique de l'écran connecté
 OUTPUT_NAME=$(xrandr --query | grep " connected" | head -n "$OUTPUT_NUMBER" | tail -n 1 | cut -d' ' -f1)
 xrandr --output "$OUTPUT_NAME" --primary --auto --rotate "${ROTATE_DISPLAY}"
 setxkbmap "$KEYBOARD_LAYOUT"
 
-#### 3. TACTILE (Après Xorg et Openbox)
+#### 3. TACTILE (DÉTECTION AUTOMATIQUE AMÉLIORÉE)
 if [ "$MAP_TOUCH_INPUTS" = true ]; then
-    bashio::log.info "Mapping touch inputs..."
+    bashio::log.info "Recherche du périphérique tactile..."
     sleep 2
+    # On cherche les IDs des périphériques qui sont des esclaves pointeurs (Floating/Master pointer)
+    # et on filtre pour exclure les claviers/boutons
     xinput list --id-only | while read -r id; do
-        if xinput list-props "$id" 2>/dev/null | grep -q "Coordinate Transformation Matrix"; then
+        props=$(xinput list-props "$id" 2>/dev/null)
+        # Un écran tactile a presque toujours une matrice de transformation et n'est pas un clavier
+        if echo "$props" | grep -q "Coordinate Transformation Matrix" && ! echo "$props" | grep -q "Keyboard"; then
+            bashio::log.info "Périphérique tactile détecté (ID: $id). Mapping vers $OUTPUT_NAME..."
             xinput map-to-output "$id" "$OUTPUT_NAME" || true
         fi
     done
 fi
 
-#### 4. CLAVIER MATCHBOX
+#### 4. CLAVIER TACTILE (SANS OPTIONS QUI PLANTENT)
 if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
-    bashio::log.info "Starting Matchbox Virtual Keyboard..."
-    matchbox-keyboard -e & 
-    sleep 2
-    # On force le clavier à être visible en bas
-    xdotool search --class "matchbox-keyboard" windowmove 0 70% 2>/dev/null || true
+    bashio::log.info "Démarrage du clavier Matchbox..."
+    matchbox-keyboard & 
+    sleep 3
+    # On place le clavier en bas (30% de l'écran)
+    xdotool search --class "matchbox-keyboard" windowmove 0 750 2>/dev/null || true
+    xdotool search --class "matchbox-keyboard" windowsize 100% 25% 2>/dev/null || true
 fi
 
 #### 5. SERVICES ET CHROMIUM
@@ -104,7 +108,7 @@ CHROME_FLAGS="--no-sandbox --start-fullscreen --disable-infobars --force-device-
 FULL_URL="${HA_URL}"
 [ -n "$HA_DASHBOARD" ] && FULL_URL="${HA_URL}/${HA_DASHBOARD}"
 
-bashio::log.info "Launching Chromium..."
+bashio::log.info "Lancement de Chromium..."
 chromium $CHROME_FLAGS "$FULL_URL" > /tmp/chromium.log 2>&1 &
 CHROME_PID=$!
 
