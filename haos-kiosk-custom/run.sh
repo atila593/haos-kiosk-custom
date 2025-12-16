@@ -29,14 +29,17 @@ if xinput list --name-only | grep -q "$TOUCH_NAME"; then
     xinput map-to-output "$TOUCH_NAME" "$MAIN_SCREEN" || true
 fi
 
-# 3. Lancer Openbox avec une config qui force le clavier au-dessus
+# 3. Lancer Openbox avec la config de superposition
 openbox --config-file /etc/openbox/rc.xml &
+sleep 1
 
-# 4. Lancer le clavier en mode "DOCK" (si activé)
-if [ "$USE_KEYBOARD" = "true" ]; then
-    bashio::log.info "Initialisation du clavier visuel (Matchbox)..."
-    # Le mode "daemon" permet au clavier de rester en attente
-    matchbox-keyboard --daemon & 
+# 4. Lancer le clavier en mode "DOCK" 
+# On le place en bas (orientation landscape)
+if bashio::config.true 'onscreen_keyboard'; then
+    bashio::log.info "Lancement du clavier..."
+    matchbox-keyboard -o landscape &
+    # On attend un peu pour qu'il prenne sa place
+    sleep 2
 fi
 
 # 5. Lancer Chromium
