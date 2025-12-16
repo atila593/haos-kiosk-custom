@@ -1,7 +1,9 @@
+# 1. Image de base Home Assistant (gérée par le build system)
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# 1. Installer tous les paquets (sur une seule ligne pour éviter les erreurs de parsing)
+# 2. Installation des paquets système (Alpine Linux)
+# On regroupe tout pour optimiser les couches Docker
 RUN apk update && apk add --no-cache \
     xorg-server \
     xf86-video-intel \
@@ -18,8 +20,8 @@ RUN apk update && apk add --no-cache \
     setxkbmap \
     xkeyboard-config \
     chromium \
-    py3-pip \
     python3 \
+    py3-pip \
     bash \
     patch \
     eudev \
@@ -29,26 +31,27 @@ RUN apk update && apk add --no-cache \
     matchbox-keyboard \
     libpng \
     xdotool \
-    x11-xserver-utils \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /tmp/* /var/cache/apk/*
 
-RUN apk add --no-cache ttf-dejavu font-noto
+# 3. Installation des dépendances Python pour ton serveur REST
+# On le fait avant de copier le code pour profiter du cache Docker
+RUN pip3 install --no-cache-dir aiohttp
 
-# Créer le dossier de config et copier le fichier
-RUN mkdir -p /etc/openbox
-COPY rc.xml /etc/openbox/rc.xml
+# 4. Définition du répertoire de travail
+WORKDIR /app
 
-# 2. Nettoyer l'ancien navigateur (Luakit)
-RUN rm -rf /usr/share/luakit || true
+# 5. Copie des fichiers de ton addon
+# Assure-toi que ces fichiers sont dans le même dossier que ton Dockerfile
+COPY run.sh /app/
+COPY rest_server.py /app/
+# Si tu as d'autres scripts (ex: toggle_keyboard.py), décommente la ligne suivante :
+# COPY *.py /app/
 
-# 3. Copier les scripts nécessaires (y compris rest_server.py)
-COPY toggle_keyboard.py rest_server.py /
+# 6. Permissions d'exécution sur le script de démarrage
+RUN chmod a+x /app/run.sh
 
-# 4. Installer les dépendances Python (attention, pas de '\' à la fin du RUN ci-dessus)
-RUN pip3 install --no-cache-dir --break-system-packages aiohttp
+# 7. Utilisation de Tini pour gérer les processus correctement
+ENTRYPOINT ["/sbin/tini", "--"]
 
-# 5. Installer le run.sh
-COPY run.sh /
-RUN chmod a+x /run.sh
-
-CMD ["/run.sh"]
+# 8. Commande de lancement
+CMD ["/app/run.sh"]
