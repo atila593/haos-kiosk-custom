@@ -497,9 +497,13 @@ if [ -n "$HA_DASHBOARD" ]; then
     fi
 fi
 
-# Effacer la console et mettre un fond noir
-clear > /dev/tty0
-xsetroot -solid black
+# Nettoyage de l'écran (Version compatible HAOS)
+if [ -e /dev/tty0 ]; then
+    clear > /dev/tty0 || true
+fi
+
+# On ne lance xsetroot que si la commande existe
+command -v xsetroot >/dev/null 2>&1 && xsetroot -solid black || true
 
 bashio::log.info "Launching Chromium to: $FULL_URL"
 bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DPI)"
