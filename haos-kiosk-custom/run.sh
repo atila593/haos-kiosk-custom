@@ -298,7 +298,7 @@ if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
 
     # Lancement du clavier Onboard en arrière-plan (LIGNE MODIFIÉE CI-DESSOUS)
     # Lancement avec options pour forcer la visibilité et la compatibilité tactile
-    onboard --desktop=0 --enable-wacom-pen --toggle-visible &
+    onboard --no-hints --toggle-visible &
     
     # Lancement du script python qui sert de "bouton invisible"
     python3 /toggle_keyboard.py &
