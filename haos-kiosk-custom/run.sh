@@ -1,48 +1,28 @@
 #!/usr/bin/with-contenv bashio
 
-bashio::log.info "Démarrage en mode ultra-stable..."
+# Variables
+HA_URL=$(bashio::config 'ha_url' 'http://homeassistant.local:8123')
+HA_DASHBOARD=$(bashio::config 'ha_dashboard' '')
+FINAL_URL="${HA_URL}/${HA_DASHBOARD}"
 
-# Nettoyage forcé des verrous X11 et D-Bus
-rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 || true
-mkdir -p /run/dbus || true
+bashio::log.info "Démarrage du Kiosk..."
 
-# Lancement D-Bus en mode safe
-dbus-daemon --system --fork || true
-
-# Lancement Xorg
-Xorg -nocursor :0 vt1 > /dev/null 2>&1 &
+# Préparation X11
+rm -f /tmp/.X0-lock || true
+Xorg -nocursor :0 vt1 &
 export DISPLAY=:0
-sleep 3
+sleep 2
 
-# Lancement Openbox (Gestionnaire de fenêtres)
-openbox --config-file /etc/openbox/rc.xml &
-sleep 1
-
-# Lancement de ton serveur REST Python (Important : en arrière-plan avec &)
+# Lancement des composants en arrière-plan
+matchbox-keyboard --daemon &
+# ON UTILISE /app/ car c'est là que Docker copie le fichier
 export REST_PORT=$(bashio::config 'rest_port' '8080')
-python3 /app/rest_server.py &
-bashio::log.info "Serveur REST démarré sur le port $REST_PORT"
+python3 /app/rest_server.py & 
 
-# Lancement de Chromium en mode "Don't Die"
-# On le met dans une boucle : s'il crash, il se relance tout seul
-(
-  while true; do
-    bashio::log.info "Lancement de Chromium..."
-    chromium \
-      --no-sandbox \
-      --kiosk \
-      --disable-gpu \
-      --disable-software-rasterizer \
-      --noerrdialogs \
-      --disable-infobars \
-      "$(bashio::config 'ha_url' 'http://homeassistant.local:8123')"
-    bashio::log.warn "Chromium s'est arrêté inopinément, relance dans 5 secondes..."
-    sleep 5
-  done
-) &
-
-# BOUCLE INFINIE FINALE : Empêche l'addon de mourir
-bashio::log.info "Conteneur verrouillé pour rester allumé."
-while true; do
-    sleep 60
-done
+# Chromium (Processus principal qui garde l'addon ouvert)
+chromium \
+  --no-sandbox \
+  --kiosk \
+  --start-fullscreen \
+  --disable-gpu \
+  "$FINAL_URL"
