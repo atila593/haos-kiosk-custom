@@ -71,8 +71,10 @@ chromium \
   --autoplay-policy=no-user-gesture-required \
   "$FINAL_URL" &
 
-# IMPORTANT : Cette boucle empêche l'addon de s'arrêter
-bashio::log.info "Kiosk prêt et stable."
+# 8. BOUCLE DE MAINTIEN (ESSENTIEL)
+# Cela empêche l'addon de s'arrêter si Chromium crash
+bashio::log.info "Kiosk prêt et stable. En attente de commandes REST..."
+
 while true; do
     sleep 60
 done
