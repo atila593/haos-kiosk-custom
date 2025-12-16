@@ -1,56 +1,77 @@
 #!/usr/bin/with-contenv bashio
 
-# On redémarre udev à l'intérieur pour scanner le matériel
-bashio::log.info "Initialisation du matériel USB/Tactile..."
-udevd --daemon || true
-udevadm trigger || true
-sleep 2
+# 1. Récupération des configurations
+HA_URL=$(bashio::config 'ha_url')
+HA_DASHBOARD=$(bashio::config 'ha_dashboard')
+ZOOM_LEVEL=$(bashio::config 'zoom_level')
+CURSOR_TIMEOUT=$(bashio::config 'cursor_timeout')
 
-# On donne les droits réels aux fichiers créés
-chmod -R 777 /dev/input || true
+# Construction de l'URL
+if [ -z "$HA_DASHBOARD" ]; then
+    FINAL_URL="$HA_URL"
+else
+    # Nettoyage pour éviter les doubles slashes
+    HA_URL_STRIPPED=$(echo "$HA_URL" | sed 's:/*$::')
+    DASHBOARD_STRIPPED=$(echo "$HA_DASHBOARD" | sed 's:^/*::')
+    FINAL_URL="${HA_URL_STRIPPED}/${DASHBOARD_STRIPPED}"
+fi
 
-# --- HACK PERMISSIONS ---
+# 2. Préparation du matériel (Mode Privilégié requis)
+bashio::log.info "Initialisation du système graphique et tactile..."
+
+# Hack TTY pour éviter les conflits d'affichage
 if [ -e "/dev/tty0" ]; then
     mount -o remount,rw /dev || true
     rm -f /dev/tty0
 fi
 
-# Démarrage de UDEV (crucial pour peupler /dev/input)
-/sbin/udevd --daemon || true
-udevadm trigger || true
-
-# Forcer les droits sur les ports USB/Entrées
+# On s'assure que les entrées sont accessibles
 chmod -R 777 /dev/input || true
 
-# --- CONFIG XORG TACTILE ---
-mkdir -p /usr/share/X11/xorg.conf.d/
-cat > /usr/share/X11/xorg.conf.d/99-touchscreen.conf << 'EOF'
-Section "InputClass"
-    Identifier "touchscreen catchall"
-    MatchIsTouchscreen "on"
-    MatchDevicePath "/dev/input/event*"
-    Driver "evdev"
-EndSection
-EOF
-
-# --- DEMARRAGE ---
+# 3. Lancement du serveur X
+# On lance Xorg en arrière-plan
 Xorg -nocursor </dev/null &
-sleep 5
+sleep 4
 export DISPLAY=:0
 
-# Diagnostic : On vérifie si udev a fait son travail
-bashio::log.info "Vérification des périphériques d'entrée :"
-xinput list
+# 4. Configuration de l'affichage
+# On désactive la mise en veille et l'économiseur d'écran
+xset s off
+xset -dpms
+xset s noblank
 
+# On récupère l'ID du tactile dynamiquement (ton fameux Weida id=9)
+TOUCH_ID=$(xinput list --id-only "Weida Hi-Tech CoolTouchR System" 2>/dev/null)
+if [ ! -z "$TOUCH_ID" ]; then
+    bashio::log.info "Tactile Weida détecté (ID: $TOUCH_ID). Mappage sur l'écran..."
+    # On mappe le tactile sur la première sortie écran trouvée
+    SCREEN_NAME=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
+    xinput map-to-output "$TOUCH_ID" "$SCREEN_NAME" || true
+fi
+
+# 5. Lancement des services UI
 openbox &
-matchbox-keyboard &
-sleep 3
+if bashio::config.true 'onscreen_keyboard'; then
+    matchbox-keyboard &
+fi
 
-# Chromium avec les drapeaux de stabilité
+# 6. Lancement de Chromium
+bashio::log.info "Lancement du Kiosk à l'adresse : $FINAL_URL"
+
+# Calcul du facteur de zoom pour Chromium
+# Chromium utilise un facteur où 100% = 1.0
+CHROME_ZOOM=$(awk "BEGIN {print $ZOOM_LEVEL/100}")
+
 chromium \
   --no-sandbox \
-  --disable-gpu \
-  --disable-dev-shm-usage \
+  --kiosk \
   --start-fullscreen \
   --no-first-run \
-  "http://192.168.1.142:8123"
+  --disable-gpu \
+  --disable-dev-shm-usage \
+  --disable-session-crashed-bubble \
+  --disable-infobars \
+  --force-device-scale-factor="$CHROME_ZOOM" \
+  --touch-events=enabled \
+  --autoplay-policy=no-user-gesture-required \
+  "$FINAL_URL"
