@@ -37,24 +37,19 @@ openbox --config-file /etc/openbox/rc.xml &
 # 6. Clavier et Serveur de contrôle
 if [ "$USE_KEYBOARD" = "true" ]; then
     bashio::log.info "Démarrage du clavier et du serveur de contrôle..."
-    
-    # Exporter les variables pour Python
     export ALLOW_USER_COMMANDS=$(bashio::config 'allow_user_commands' 'false')
     export REST_PORT=$(bashio::config 'rest_port' '8080')
-    export DISPLAY=:0  # On s'assure qu'il est bien exporté pour ce sous-processus
+    export DISPLAY=:0
     
-    # Lancement du clavier Matchbox en mode daemon
-    matchbox-keyboard --daemon &
-    
-    # Lancement du serveur (Note le chemin /app/)
+    # On lance le serveur REST (chemin /app/ car défini dans Dockerfile)
     python3 /app/rest_server.py &
-    
-    bashio::log.info "Serveur REST lancé sur le port $REST_PORT"
 fi
 
-# 7. Lancement de Chromium (Optimisé pour éviter les erreurs GPU/Vulkan)
+# 7. Lancement de Chromium
+# On ajoute le & à la fin pour que le script continue même si Chromium crash
 CHROME_ZOOM=$(awk "BEGIN {print $ZOOM_LEVEL/100}")
 
+bashio::log.info "Lancement de Chromium..."
 chromium \
   --no-sandbox \
   --kiosk \
@@ -71,10 +66,15 @@ chromium \
   --autoplay-policy=no-user-gesture-required \
   "$FINAL_URL" &
 
-# 8. BOUCLE DE MAINTIEN (ESSENTIEL)
-# Cela empêche l'addon de s'arrêter si Chromium crash
-bashio::log.info "Kiosk prêt et stable. En attente de commandes REST..."
+# 8. Gardien du conteneur (BOUCLE INFINIE)
+# Empêche l'addon de s'arrêter et de casser la connexion X11
+bashio::log.info "Kiosk stable. En attente de requêtes sur le port $REST_PORT"
 
 while true; do
-    sleep 60
+    # On vérifie si Chromium tourne toujours, sinon on peut le relancer ici
+    if ! pgrep -x "chromium" > /dev/null; then
+        bashio::log.warn "Chromium s'est arrêté, tentative de relance..."
+        # Optionnel : relancer la commande chromium ici
+    fi
+    sleep 10
 done
