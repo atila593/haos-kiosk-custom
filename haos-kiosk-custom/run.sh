@@ -287,10 +287,26 @@ else
     bashio::log.error "Could not determine screen size for output $OUTPUT_NAME"
 fi
 
-#### Onboard keyboard - DISABLED (not installed in this container)
+#### Onboard keyboard - Configuration & Launch
 if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
-    bashio::log.warning "Onboard keyboard requested but not available in this container version"
-    bashio::log.warning "Virtual keyboard functionality is not supported"
+    bashio::log.info "Starting Onboard Virtual Keyboard..."
+    
+    # Restauration de la configuration précédente si elle existe
+    if [ -f "$ONBOARD_CONFIG_FILE" ]; then
+        dconf load /org/onboard/ < "$ONBOARD_CONFIG_FILE" 2>/dev/null || true
+    fi
+
+    # Lancement du clavier Onboard en arrière-plan
+    onboard &
+    
+    # Lancement du script python qui sert de "bouton invisible" pour faire apparaître/disparaître Onboard.
+    # On le positionne en haut à droite (0,0) avec une taille de 1x1.
+    python3 /toggle_keyboard.py &
+    
+    bashio::log.info "✓ Onboard Virtual Keyboard is now active (controlled by clicking the top-left corner)."
+else
+    # Si le clavier est désactivé, on supprime tout fichier de configuration sauvegardé
+    [ -f "$ONBOARD_CONFIG_FILE" ] && rm -f "$ONBOARD_CONFIG_FILE"
 fi
 
 #### Start REST server
