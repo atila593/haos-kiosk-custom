@@ -41,12 +41,15 @@ if [ "$USE_KEYBOARD" = "true" ]; then
     # Exporter les variables pour Python
     export ALLOW_USER_COMMANDS=$(bashio::config 'allow_user_commands' 'false')
     export REST_PORT=$(bashio::config 'rest_port' '8080')
+    export DISPLAY=:0  # On s'assure qu'il est bien exporté pour ce sous-processus
     
-    # Lancement du clavier
+    # Lancement du clavier Matchbox en mode daemon
     matchbox-keyboard --daemon &
     
-    # Lancement du serveur avec les variables chargées
-    python3 /rest_server.py &
+    # Lancement du serveur (Note le chemin /app/)
+    python3 /app/rest_server.py &
+    
+    bashio::log.info "Serveur REST lancé sur le port $REST_PORT"
 fi
 
 # 7. Lancement de Chromium (Optimisé pour éviter les erreurs GPU/Vulkan)
