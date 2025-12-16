@@ -27,7 +27,10 @@ RUN apk update && apk add --no-cache \
     procps \
     tini \
     matchbox-keyboard \
-    libpng
+    libpng \
+    xdotool \
+    x11-xserver-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN apk add --no-cache ttf-dejavu font-noto
 
