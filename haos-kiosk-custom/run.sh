@@ -287,22 +287,23 @@ else
     bashio::log.error "Could not determine screen size for output $OUTPUT_NAME"
 fi
 
-#### Onboard keyboard - Configuration & Launch
+#### Matchbox Virtual Keyboard - Configuration & Launch
 if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
-    bashio::log.info "Starting Onboard Virtual Keyboard..."
+    bashio::log.info "Starting Matchbox Virtual Keyboard..."
     
-    # Restauration de la configuration précédente si elle existe
-    if [ -f "$ONBOARD_CONFIG_FILE" ]; then
-        dconf load /org/onboard/ < "$ONBOARD_CONFIG_FILE" 2>/dev/null || true
-    fi
+    export DISPLAY=:0
+    
+    # Petit délai pour s'assurer que le serveur X est bien prêt
+    sleep 2
 
-    # Lancement du clavier Onboard en arrière-plan (sans options d'échec)
-    onboard &
+    # Lancement du clavier Matchbox
+    # -o orientation : permet au clavier de s'adapter si l'écran est pivoté
+    matchbox-keyboard -o orientation &
     
-    bashio::log.info "✓ Onboard Virtual Keyboard is now active (controlled by Lovelace button)."
+    bashio::log.info "✓ Matchbox Virtual Keyboard is now active."
 else
-    # Si le clavier est désactivé, on supprime tout fichier de configuration sauvegardé
-    [ -f "$ONBOARD_CONFIG_FILE" ] && rm -f "$ONBOARD_CONFIG_FILE"
+    # Nettoyage si le clavier était activé auparavant
+    killall matchbox-keyboard 2>/dev/null || true
 fi
 
 #### Start REST server
