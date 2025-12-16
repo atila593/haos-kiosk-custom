@@ -299,11 +299,11 @@ if [[ "$ONSCREEN_KEYBOARD" = true ]]; then
     # Lancement du clavier Onboard en arrière-plan (sans options d'échec)
     onboard &
     
-    # Suppression du lancement de python3 /toggle_keyboard.py
-    
     bashio::log.info "✓ Onboard Virtual Keyboard is now active (controlled by Lovelace button)."
 else
-# ... le reste du bloc 'else' inchangé
+    # Si le clavier est désactivé, on supprime tout fichier de configuration sauvegardé
+    [ -f "$ONBOARD_CONFIG_FILE" ] && rm -f "$ONBOARD_CONFIG_FILE"
+fi
 
 #### Start REST server
 bashio::log.info "Starting HAOSKiosk REST server..."
