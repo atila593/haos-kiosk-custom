@@ -44,6 +44,23 @@ def sanitize_command(cmd):
     if re.search(r'[&|<>]', cmd):
         raise ValueError("Command 'cmd' contains invalid characters")
     return cmd
+    
+# NOUVELLE FONCTION POUR LE CLAVIER ONBOARD
+async def toggle_onboard_keyboard(log_prefix: str = "toggle_keyboard"):
+    """Execute la commande D-Bus pour basculer la visibilité du clavier Onboard."""
+    # Commande D-Bus pour basculer l'état Visible
+    command = "dbus-send --type=method_call --print-reply --dest=org.onboard.Onboard /org/onboard/Onboard/Keyboard org.onboard.Onboard.Keyboard.ToggleVisible"
+    
+    # Nous utilisons run_command existante pour l'exécution asynchrone et la gestion des logs
+    result = await run_command(command, log_prefix)
+    
+    if result["success"]:
+        logging.info(f"[{log_prefix}] Clavier Onboard basculé via D-Bus.")
+    else:
+        logging.error(f"[{log_prefix}] Erreur lors de la bascule D-Bus: {result['stderr']}")
+        
+    return result
+# FIN NOUVELLE FONCTION
 
 async def run_command(command: str, log_prefix: str, cmd_timeout: int = None):
     """Run a command asynchronously with optional timeout (seconds)."""
@@ -143,7 +160,7 @@ async def multi_command_handler(request, commands, log_prefix, cmd_timeout: int 
 async def handle_launch_url(request):
     """Handle /launch_url endpoint."""
     return await single_command_handler(
-        request, "luakit {url}", "launch_url", data_keys=[("url", is_valid_url)], require_keys=True, cmd_timeout=None
+        request, "chromium --app={url}", "launch_url", data_keys=[("url", is_valid_url)], require_keys=True, cmd_timeout=None
     )
 
 async def handle_refresh_browser(request):
@@ -218,6 +235,18 @@ async def handle_display_off(request):
     return await single_command_handler(
         request, "xset dpms force off", "display_off", data_keys=None, cmd_timeout=None
     )
+
+# NOUVEAU GESTIONNAIRE POUR LE CLAVIER
+async def handle_toggle_keyboard(request):
+    """Handle /keyboard/toggle endpoint."""
+    logging.info("[toggle_keyboard] Called to toggle Onboard visibility")
+    result = await toggle_onboard_keyboard()
+
+    if result["success"]:
+        return web.json_response({"success": True, "message": "Onboard keyboard toggled"})
+    else:
+        return web.json_response({"success": False, "error": "D-Bus toggle failed", "details": result}, status=500)
+# FIN NOUVEAU GESTIONNAIRE
 
 async def handle_current_processes(request):
     """Return count of currently running subprocesses."""
@@ -316,7 +345,7 @@ async def handle_run_commands(request):
 
         if set(data.keys()) - {"cmds", "cmd_timeout"}:
             logging.error(f"[run_commands] Invalid keys in payload: {set(data.keys()) - {'cmds', 'cmd_timeout'}}")
-            return web.json_response({"success": False, "error": f"Invalid keys in payload: {set(data.keys()) - {'cmd', 'cmd_timeout'}}"}, status=400)
+            return web.json_response({"success": False, "error": f"Invalid keys in payload: {set(data.keys()) - {'cmds', 'cmd_timeout'}}"}, status=400)
 
         logging.info(f"[run_commands] Called with commands: {commands}")
         try:
@@ -365,6 +394,10 @@ async def main():
     app.router.add_get("/is_display_on", handle_is_display_on)
     app.router.add_post("/display_on", handle_display_on)
     app.router.add_post("/display_off", handle_display_off)
+    
+    # ENREGISTREMENT DE LA NOUVELLE ROUTE CLAVIER
+    app.router.add_post("/keyboard/toggle", handle_toggle_keyboard)
+    
     app.router.add_get("/current_processes", handle_current_processes)
     app.router.add_post("/xset", handle_xset)
     app.router.add_post("/run_command", handle_run_command)
