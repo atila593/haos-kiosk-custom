@@ -470,7 +470,7 @@ sed -i "s|__AUTO_LOGIN__|${AUTO_LOGIN}|g" /tmp/combined-userscript.js
 bashio::log.info "Combined userscript created successfully"
 
 ################################################################################
-#### CHROMIUM LAUNCH
+#### CHROMIUM LAUNCH (Solution simple avec URL parameters)
 ################################################################################
 
 # Calculer le zoom/DPI
@@ -479,63 +479,44 @@ ZOOM_DPI=$(awk "BEGIN {printf \"%.2f\", $ZOOM_LEVEL / 100}")
 # Créer le profil utilisateur Chromium
 mkdir -p /tmp/chromium-profile/Default
 
-# Créer le fichier Preferences pour injecter le userscript
-cat > /tmp/chromium-profile/Default/Preferences << PREFEOF
-{
-  "extensions": {
-    "settings": {}
-  }
-}
-PREFEOF
-
-# Créer un manifest.json pour le userscript
-mkdir -p /tmp/userscript-extension
-cat > /tmp/userscript-extension/manifest.json << MANIFEST
-{
-  "manifest_version": 2,
-  "name": "HAOSKiosk Userscript",
-  "version": "1.0",
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["userscript.js"],
-      "run_at": "document_start"
-    }
-  ]
-}
-MANIFEST
-
-cp /tmp/combined-userscript.js /tmp/userscript-extension/userscript.js
-
 # Construire les flags Chromium
 CHROME_FLAGS="\
     --no-sandbox \
+    --test-type \
     --disable-gpu \
     --disable-software-rasterizer \
-    --start-fullscreen \
-    --disable-infobars \
+    --kiosk \
+    --noerrdialogs \
+    --disable-session-crashed-bubble \
     --disable-notifications \
     --disable-popup-blocking \
     --force-device-scale-factor=$ZOOM_DPI \
     --disable-features=TranslateUI \
     --window-size=$SCREEN_WIDTH,$SCREEN_HEIGHT \
     --no-first-run \
-    --user-data-dir=/tmp/chromium-profile \
-    --load-extension=/tmp/userscript-extension"
+    --user-data-dir=/tmp/chromium-profile"
 
 # Dark mode
 [ "$DARK_MODE" = true ] && CHROME_FLAGS="$CHROME_FLAGS --force-dark-mode"
 
-# Construire l'URL complète
+# Construire l'URL complète avec paramètres Home Assistant
 FULL_URL="${HA_URL}"
 if [ -n "$HA_DASHBOARD" ]; then
     FULL_URL="${HA_URL}/${HA_DASHBOARD}"
 fi
 
+# Ajouter les paramètres URL pour masquer la sidebar
+if [ "$HA_SIDEBAR" = "none" ]; then
+    if [[ "$FULL_URL" == *"?"* ]]; then
+        FULL_URL="${FULL_URL}&hide_sidebar=true"
+    else
+        FULL_URL="${FULL_URL}?hide_sidebar=true"
+    fi
+fi
+
 bashio::log.info "Launching Chromium to: $FULL_URL"
 bashio::log.info "Zoom level: ${ZOOM_LEVEL}% ($ZOOM_DPI)"
-bashio::log.info "Mode: Fullscreen with userscript injection"
-bashio::log.info "Auto-login: $([ "$AUTO_LOGIN" = true ] && echo "ENABLED (JavaScript)" || echo "DISABLED")"
+bashio::log.info "Mode: Kiosk (true fullscreen)"
 bashio::log.info "Sidebar: $HA_SIDEBAR"
 [ "$DEBUG_MODE" = true ] && bashio::log.info "Launch flags: $CHROME_FLAGS"
 
@@ -543,6 +524,53 @@ bashio::log.info "Sidebar: $HA_SIDEBAR"
 chromium $CHROME_FLAGS "$FULL_URL" > /tmp/chromium.log 2>&1 &
 CHROME_PID=$!
 bashio::log.info "Chromium launched (PID: $CHROME_PID)"
+
+# Si auto-login est activé, utiliser xdotool
+if [ "$AUTO_LOGIN" = true ]; then
+    bashio::log.info "Auto-login enabled, will use xdotool after delay"
+    (
+        # Attendre le chargement
+        LOGIN_DELAY_INT=${LOGIN_DELAY%.*}
+        TOTAL_WAIT=$((LOGIN_DELAY_INT + 5))
+        bashio::log.info "Waiting ${TOTAL_WAIT}s for page load..."
+        sleep $TOTAL_WAIT
+
+        # Trouver la fenêtre Chromium
+        for attempt in {1..10}; do
+            WINDOW_ID=$(xdotool search --class chromium 2>/dev/null | head -1)
+            [ -n "$WINDOW_ID" ] && break
+            sleep 1
+        done
+
+        if [ -n "$WINDOW_ID" ]; then
+            bashio::log.info "Found Chromium window: $WINDOW_ID"
+            xdotool windowactivate --sync "$WINDOW_ID"
+            sleep 2
+
+            # Taper le username
+            bashio::log.info "Typing username..."
+            xdotool type --delay 100 "$HA_USERNAME"
+            sleep 1
+
+            # Tab vers password
+            xdotool key Tab
+            sleep 1
+
+            # Taper le password
+            bashio::log.info "Typing password..."
+            xdotool type --delay 100 "$HA_PASSWORD"
+            sleep 1
+
+            # Enter pour submit
+            bashio::log.info "Submitting form..."
+            xdotool key Return
+
+            bashio::log.info "✓ Auto-login sequence completed"
+        else
+            bashio::log.error "Could not find Chromium window"
+        fi
+    ) &
+fi
 
 # Afficher les logs Chromium en mode debug
 if [ "$DEBUG_MODE" = true ]; then
