@@ -1,23 +1,19 @@
 #!/usr/bin/with-contenv bashio
 
-# 1. Nettoyage des logs à gauche (Nécessite Mode Protégé OFF)
-dmesg -D 2>/dev/null || true
-
-# 2. Variables de configuration
+# 1. Configuration
 HA_URL=$(bashio::config 'ha_url' 'http://192.168.1.142:8123')
 HA_DASHBOARD=$(bashio::config 'ha_dashboard' '')
 ZOOM_LEVEL=$(bashio::config 'zoom_level' '100')
 USE_KEYBOARD=$(bashio::config 'onscreen_keyboard' 'true')
-
 FINAL_URL="${HA_URL}/${HA_DASHBOARD}"
-FINAL_URL=$(echo "$FINAL_URL" | sed 's|//*|/|g' | sed 's|http:/|http://|g')
 
-bashio::log.info "Démarrage HAOSKiosk (Fix Tactile Weida)..."
+bashio::log.info "Démarrage HAOSKiosk (Mode Privilégié Requis)..."
 
-# 3. Préparation Système (Indispensable pour le tactile)
-mkdir -p /run/dbus || true
-dbus-daemon --system --fork || true
-# --- LIGNE CRUCIALE : Réveille les pilotes USB/Tactile ---
+# 2. Montage du système de fichiers en lecture/écriture (pour le tactile)
+mount -o remount,rw /sys 2>/dev/null || true
+mount -o remount,rw /dev 2>/dev/null || true
+
+# 3. Réveil forcé de l'USB et du Tactile
 udevd --daemon || true
 udevadm trigger || true
 udevadm settle --timeout=5
@@ -30,30 +26,34 @@ export DISPLAY=:0
 # Attente du serveur X
 while ! xset -q > /dev/null 2>&1; do sleep 1; done
 
-# 5. Gestion du Tactile Weida
+# 5. Mapping du Tactile (avec recherche large)
+# On attend que xinput se réveille
+sleep 3
+bashio::log.info "Périphériques détectés : $(xinput list --name-only | tr '\n' ', ')"
+
 TOUCH_NAME="Weida Hi-Tech CoolTouchR System"
-# On donne un petit délai pour que Xinput détecte le matériel
-sleep 2 
-if xinput list --name-only | grep -q "$TOUCH_NAME"; then
-    MAIN_SCREEN=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
-    xinput map-to-output "$TOUCH_NAME" "$MAIN_SCREEN" || true
-    bashio::log.info "Tactile Weida détecté et mappé sur $MAIN_SCREEN"
+MAIN_SCREEN=$(xrandr | grep " connected" | awk '{print $1}' | head -n 1)
+
+if xinput list --name-only | grep -iq "Weida"; then
+    # On utilise grep -i pour ignorer la casse
+    ACTUAL_NAME=$(xinput list --name-only | grep -i "Weida" | head -n 1)
+    xinput map-to-output "$ACTUAL_NAME" "$MAIN_SCREEN" || true
+    bashio::log.info "SUCCÈS : Tactile [$ACTUAL_NAME] mappé sur $MAIN_SCREEN"
 else
-    bashio::log.warning "Tactile Weida non trouvé par xinput !"
+    bashio::log.warning "ÉCHEC : Tactile Weida toujours introuvable. Vérifiez le Mode Protégé."
 fi
 
-# 6. Gestionnaire de fenêtres
+# 6. Window Manager et Clavier
 openbox --config-file /etc/openbox/rc.xml &
-sleep 1
-
-# 7. Clavier et Serveur de contrôle
 if [ "$USE_KEYBOARD" = "true" ]; then
     matchbox-keyboard --daemon &
     python3 /rest_server.py &
 fi
 
-# 8. Lancement de Chromium (Optimisé Tactile)
+# 7. Lancement Chromium
 CHROME_ZOOM=$(awk "BEGIN {print $ZOOM_LEVEL/100}")
+# Nettoyage console (pour tes logs à gauche)
+dmesg -D 2>/dev/null || true
 clear > /dev/tty0 2>/dev/null || true
 
 chromium \
@@ -65,5 +65,4 @@ chromium \
   --force-device-scale-factor="$CHROME_ZOOM" \
   --touch-events=enabled \
   --enable-viewport \
-  --autoplay-policy=no-user-gesture-required \
   "$FINAL_URL"
