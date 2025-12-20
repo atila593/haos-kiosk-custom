@@ -366,45 +366,28 @@ cat > /tmp/combined-userscript.js << 'JSEOF'
         return false;
     }
     
-    // ========== FONCTION FERMETURE SIDEBAR ==========
+    // ========== FONCTION FERMETURE SIDEBAR (FIXED) ==========
     function closeSidebar() {
-        if (config.sidebar !== 'none') {
-            console.log('[HAOSKiosk] Sidebar mode is "' + config.sidebar + '", not closing');
-            return;
-        }
+        if (config.sidebar !== 'none') return;
         
-        console.log('[HAOSKiosk] Attempting to close sidebar...');
-        
-        let attempts = 0;
-        const maxAttempts = 60; // 30 secondes max
-        
-        const checkInterval = setInterval(() => {
-            attempts++;
-            
-            const homeAssistant = document.querySelector('home-assistant');
-            if (homeAssistant && homeAssistant.shadowRoot) {
-                const drawer = homeAssistant.shadowRoot.querySelector('ha-drawer');
-                if (drawer && drawer.shadowRoot) {
-                    const mdcDrawer = drawer.shadowRoot.querySelector('mwc-drawer');
-                    if (mdcDrawer) {
-                        if (mdcDrawer.open) {
-                            console.log('[HAOSKiosk] Closing sidebar now (attempt ' + attempts + ')');
-                            mdcDrawer.open = false;
-                        } else {
-                            console.log('[HAOSKiosk] Sidebar already closed (attempt ' + attempts + ')');
-                        }
-                        clearInterval(checkInterval);
-                        console.log('[HAOSKiosk] Sidebar control complete');
-                        return;
-                    }
-                }
+        console.log('[HAOSKiosk] Injection du CSS pour masquer la sidebar...');
+        const style = document.createElement('style');
+        style.id = 'kiosk-sidebar-style';
+        style.textContent = `
+            /* Masque la barre latérale gauche */
+            ha-sidebar { 
+                display: none !important; 
             }
-            
-            if (attempts >= maxAttempts) {
-                console.log('[HAOSKiosk] Max attempts reached, stopping sidebar check');
-                clearInterval(checkInterval);
+            /* Recalcule l'espace pour que le dashboard prenne toute la largeur */
+            home-assistant-main {
+                --app-drawer-width: 0px !important;
             }
-        }, 500);
+            /* Masque le bouton menu (hamburger) pour ne pas pouvoir la rouvrir */
+            ha-menu-button {
+                display: none !important;
+            }
+        `;
+        document.head.appendChild(style);
     }
     
     // ========== FONCTION DE VÉRIFICATION ET LOGIN ==========
