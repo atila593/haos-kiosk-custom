@@ -560,20 +560,32 @@ if [ "$DEBUG_MODE" = true ]; then
     tail -f /tmp/chromium.log &
 fi
 
-# 1. Attente du chargement complet de l'interface
-bashio::log.info "Attente de 25s pour le chargement..."
+# 1. Attente et clic initial
 sleep 25
-
-# 2. On s'assure que Chromium est au premier plan
-WINDOW_ID=$(xdotool search --class chromium | head -1)
-if [ -n "$WINDOW_ID" ]; then
-    xdotool windowactivate --sync "$WINDOW_ID"
+if [ "$HA_SIDEBAR" = "none" ]; then
+    bashio::log.info "Fermeture initiale de la barre."
+    xdotool mousemove 25 25 click 1
+    xdotool mousemove 1000 1000
 fi
 
-# 3. On clique une seule fois sur le Hamburger pour fermer la barre
-bashio::log.info "Action : Clic unique sur Hamburger (25,25)"
-xdotool mousemove 25 25 click 1
+# 2. Gestion du Refresh en arrière-plan
+if [ "$BROWSER_REFRESH" -gt 0 ]; then
+    bashio::log.info "Refresh actif ($BROWSER_REFRESH s) en arrière-plan."
+    (
+        while true; do
+            sleep "$BROWSER_REFRESH"
+            bashio::log.info "Refresh F5..."
+            xdotool key F5
+            sleep 20
+            if [ "$HA_SIDEBAR" = "none" ]; then
+                xdotool mousemove 25 25 click 1
+                xdotool mousemove 1000 1000
+            fi
+        done
+    ) &
+fi
 
-# 4. On ne fait plus rien, on laisse juste le processus tourner
-bashio::log.info "Mode statique activé (pas de rafraîchissement)."
+# 3. LE WAIT FINAL (Toujours à la fin, en dehors de tout bloc)
+# Il surveille Chromium. Si Chromium crash, l'add-on s'arrête proprement.
+bashio::log.info "Surveillance de Chromium (PID: $CHROME_PID)..."
 wait "$CHROME_PID"
