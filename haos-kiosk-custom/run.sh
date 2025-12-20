@@ -560,4 +560,20 @@ if [ "$DEBUG_MODE" = true ]; then
     tail -f /tmp/chromium.log &
 fi
 
+# 1. Attente du chargement complet de l'interface
+bashio::log.info "Attente de 25s pour le chargement..."
+sleep 25
+
+# 2. On s'assure que Chromium est au premier plan
+WINDOW_ID=$(xdotool search --class chromium | head -1)
+if [ -n "$WINDOW_ID" ]; then
+    xdotool windowactivate --sync "$WINDOW_ID"
+fi
+
+# 3. On clique une seule fois sur le Hamburger pour fermer la barre
+bashio::log.info "Action : Clic unique sur Hamburger (25,25)"
+xdotool mousemove 25 25 click 1
+
+# 4. On ne fait plus rien, on laisse juste le processus tourner
+bashio::log.info "Mode statique activé (pas de rafraîchissement)."
 wait "$CHROME_PID"
