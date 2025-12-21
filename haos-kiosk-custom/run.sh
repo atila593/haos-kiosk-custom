@@ -561,7 +561,7 @@ if [ "$DEBUG_MODE" = true ]; then
 fi
 
 # 1. Attente et clic initial
-sleep 25
+sleep 15
 if [ "$HA_SIDEBAR" = "none" ]; then
     bashio::log.info "Fermeture initiale de la barre."
     xdotool mousemove 25 25 click 1
